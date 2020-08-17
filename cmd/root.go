@@ -23,11 +23,8 @@ var (
 		DisableFlagsInUseLine: true,
 		Args:                  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Info.Print(args)
 			imageName := args[0]
-			log.Info.Print(imageName)
 			inArgs := args[1:]
-			log.Info.Print(inArgs)
 
 			discover(imageName)
 
@@ -56,7 +53,10 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.runtainer.yaml)")
 
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose mode")
+	rootCmd.PersistentFlags().BoolP("log", "l", false, "Enable logs")
+	viper.BindPFlag("log", rootCmd.PersistentFlags().Lookup("log"))
+
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose mode (also enables logs)")
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 
 	rootCmd.PersistentFlags().BoolP("kube", "k", false, "Use kubectl as backend instead of docker")

@@ -5,43 +5,55 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/spf13/viper"
 )
 
 var (
-	logFile *os.File
-	Debug   *log.Logger
-	Info    *log.Logger
-	Warning *log.Logger
-	Error   *log.Logger
+	logFileOnce sync.Once
+	logFile     *os.File
+	logWriter   io.Writer
+	Debug       *log.Logger
+	Info        *log.Logger
+	Warning     *log.Logger
+	Error       *log.Logger
 )
 
 func SetupLog() func() {
-	if logFile == nil {
-		file, err := os.OpenFile("runtainer.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-		logFile = file
+	if viper.GetBool("verbose") || viper.GetBool("log") {
+		logFileOnce.Do(func() {
+			var err error
+			logFile, err = os.OpenFile("runtainer.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Fatal(err)
+			}
+		})
+		logWriter = logFile
+	} else {
+		logWriter = ioutil.Discard
+	}
+
+	var debugWriter io.Writer
+	if viper.GetBool("verbose") {
+		debugWriter = logWriter
+	} else {
+		debugWriter = ioutil.Discard
 	}
 
 	logFlags := log.Ldate | log.Ltime | log.Lshortfile
 
-	var debugOut io.Writer
-	if viper.GetBool("verbose") {
-		debugOut = logFile
-	} else {
-		debugOut = ioutil.Discard
-	}
-	Debug = log.New(debugOut, "[DEBUG] ", logFlags)
-	Info = log.New(logFile, "[INFO] ", logFlags)
-	Warning = log.New(logFile, "[WARNING] ", logFlags)
-	Error = log.New(logFile, "[ERROR] ", logFlags)
+	Debug = log.New(debugWriter, "[DEBUG] ", logFlags)
+	Info = log.New(logWriter, "[INFO] ", logFlags)
+	Warning = log.New(logWriter, "[WARNING] ", logFlags)
+	Error = log.New(logWriter, "[ERROR] ", logFlags)
 
 	Debug.Print("Logger initialized")
 
 	return func() {
-		logFile.Close()
+		if logFile != nil {
+			Debug.Print("Closing log file")
+			logFile.Close()
+		}
 	}
 }
