@@ -60,4 +60,6 @@ This tool will do the following:
 
 ```bash
 runtainer maven:3.6.3-jdk-14 -- mvn version
+runtainer -d /tmp maven:3.6.3-jdk-14 -- mvn version
+runtainer maven:3.6.3-jdk-14 -e PROFILE -- mvn version
 ```

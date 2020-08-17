@@ -8,10 +8,7 @@ import (
 	"strings"
 
 	homedir "github.com/mitchellh/go-homedir"
-	"github.com/plumber-cd/runtainer/host"
-	"github.com/plumber-cd/runtainer/image"
 	"github.com/plumber-cd/runtainer/log"
-	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -26,13 +23,13 @@ var (
 		DisableFlagsInUseLine: true,
 		Args:                  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			host.DiscoverHost()
-
+			log.Info.Print(args)
 			imageName := args[0]
-			image.DiscoverImage(imageName)
+			log.Info.Print(imageName)
 			inArgs := args[1:]
+			log.Info.Print(inArgs)
 
-			volumes.DiscoverVolumes()
+			discover(imageName)
 
 			allSettings, err := json.MarshalIndent(viper.AllSettings(), "", "  ")
 			if err != nil {
