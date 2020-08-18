@@ -2,6 +2,7 @@ package volumes
 
 import (
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -145,10 +146,29 @@ func (volumes *Volumes) AddMirrorHostMount(h host.Host, i image.Image, p string)
 // AddEnvVarToDirMountOrDefault look if environment variable v is defined,
 // if yes - use it's value as src and path as dest and call addHostMount;
 // otherwise - use path to call addMirrorHostMount.
-// Useful to mount folders that might be defined as env variables like GOPATH or MAVEN_HOME, but if not always has default hardcoded location.
+// Useful to mount folders that might be defined as env variables like MAVEN_HOME, but if not always has default hardcoded location.
 func (volumes *Volumes) AddEnvVarToDirMountOrDefault(h host.Host, i image.Image, v string, path string) {
 	p, e := os.LookupEnv(v)
 	if e {
+		volumes.AddHostMount(h, i, p, path)
+	} else {
+		volumes.AddMirrorHostMount(h, i, path)
+	}
+}
+
+// AddEnvVarToDirMountOrExecOrDefault look if environment variable v is defined and use AddEnvVarToDirMountOrDefault in that case,
+// if not try to read exec output assuming it's an equivalent for the env value;
+// otherwise - use path to call addMirrorHostMount.
+// Useful to mount folders that might be defined as env variables like GOPATH or GOCACHE, or by a command like `go env`,
+// and if not always has default hardcoded location.
+func (volumes *Volumes) AddEnvVarToDirMountOrExecOrDefault(h host.Host, i image.Image, v string, ex []string, path string) {
+	// we might use `go env` to determine some values later
+	b, bErr := exec.LookPath(ex[0])
+
+	if _, exists := os.LookupEnv(v); exists {
+		volumes.AddEnvVarToDirMountOrDefault(h, i, v, path)
+	} else if bErr == nil {
+		p, _ := host.Exec(exec.Command(b, ex[1:]...))
 		volumes.AddHostMount(h, i, p, path)
 	} else {
 		volumes.AddMirrorHostMount(h, i, path)
