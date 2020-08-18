@@ -122,7 +122,7 @@ func runInKube(args []string) {
 			os.Exit(exitErr.ExitCode())
 		}
 
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 }
 

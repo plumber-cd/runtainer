@@ -30,7 +30,7 @@ var (
 
 			allSettings, err := json.MarshalIndent(viper.AllSettings(), "", "  ")
 			if err != nil {
-				log.Error.Fatal(err)
+				log.Error.Panic(err)
 			}
 			log.Debug.Printf("Settings: %s", string(allSettings))
 
@@ -86,7 +86,7 @@ func initConfig() {
 		// Find home directory.
 		home, err := homedir.Dir()
 		if err != nil {
-			log.Error.Fatal(err)
+			log.Error.Panic(err)
 		}
 
 		// Search config in home directory with name ".runtainer" (without extension).
@@ -103,7 +103,7 @@ func initConfig() {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 	viper.SetConfigName(".runtainer")
 	viper.AddConfigPath(cwd)
@@ -143,7 +143,7 @@ func splitArgs(args ...string) ([]string, []string) {
 func randomHex(n int) string {
 	bytes := make([]byte, n)
 	if _, err := rand.Read(bytes); err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 	return hex.EncodeToString(bytes)
 }

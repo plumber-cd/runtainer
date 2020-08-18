@@ -35,32 +35,32 @@ type Host struct {
 func DiscoverHost() {
 	hostName, err := os.Hostname()
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	currentUser, err := user.Current()
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	home, err := homedir.Dir()
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	dockerPath, err := exec.LookPath("docker")
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	kubectlPath, err := exec.LookPath("kubectl")
 	if err != nil && viper.GetBool("kube") {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	h := Host{}
@@ -75,7 +75,7 @@ func DiscoverHost() {
 	if d := viper.GetString("dir"); d != "" {
 		h.Cwd, err = filepath.Abs(d)
 		if err != nil {
-			log.Error.Fatal(err)
+			log.Error.Panic(err)
 		}
 	} else {
 		h.Cwd = cwd
@@ -100,7 +100,7 @@ func Exec(cmd *exec.Cmd) (string, []byte) {
 		if ok {
 			log.Error.Print(string(exitErr.Stderr))
 		}
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	return strings.TrimSpace(string(out)), out

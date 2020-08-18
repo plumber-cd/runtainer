@@ -26,7 +26,7 @@ func SetupLog() func() {
 			var err error
 			logFile, err = os.OpenFile("runtainer.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 			if err != nil {
-				log.Fatal(err)
+				log.Panic(err)
 			}
 		})
 		logWriter = logFile

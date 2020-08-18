@@ -24,7 +24,7 @@ func discoverEnv() {
 		log.Debug.Printf("DOCKER_HOST env var detected: %s", s)
 		u, err := url.Parse(s)
 		if err != nil {
-			log.Error.Fatal(err)
+			log.Error.Panic(err)
 		}
 		if u.Hostname() == "localhost" || strings.HasPrefix(u.Hostname(), "127.") {
 			internal := "host.docker.internal"

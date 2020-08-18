@@ -69,12 +69,12 @@ func DiscoverVolumes() {
 		// basically, if current working directory on the host somewhere under the user home, we already have it mounted - we just need to calculate the path to it
 		containerRtHomePath, err := filepath.Rel(h.Home, h.Cwd)
 		if err != nil {
-			log.Error.Fatal(err)
+			log.Error.Panic(err)
 		}
 		// just to get rid of . and ..
 		containerRtHomePath, err = filepath.Abs(containerRtHomePath)
 		if err != nil {
-			log.Error.Fatal(err)
+			log.Error.Panic(err)
 		}
 		// convert path separator to what's in the image
 		// note that filepath.FromSlash and filepath.ToSlash won't work as they would rely on the host OS file separator
@@ -124,12 +124,12 @@ func (volumes *Volumes) AddHostMount(h host.Host, i image.Image, src, dest strin
 	// do that only for src as filepath uses host file separator
 	s, err := filepath.Abs(src)
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	exists, err := osFs.DirExists(s)
 	if err != nil {
-		log.Error.Fatal(err)
+		log.Error.Panic(err)
 	}
 
 	if exists {
