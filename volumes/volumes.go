@@ -44,7 +44,10 @@ func DiscoverVolumes() {
 	if v := viper.Get("volumes"); v != nil {
 		// when read from viper for the first time (i.e. nothing Set it there yet as the struct) it will be a map[string]interface{}
 		// hence we need to convert it to the struct
-		mapstructure.Decode(v, &volumes)
+		err := mapstructure.Decode(v, &volumes)
+		if err != nil {
+			log.Error.Panic(err)
+		}
 	}
 
 	// fix structure in case nothing was defined
@@ -168,7 +171,7 @@ func (volumes *Volumes) AddEnvVarToDirMountOrExecOrDefault(h host.Host, i image.
 	if _, exists := os.LookupEnv(v); exists {
 		volumes.AddEnvVarToDirMountOrDefault(h, i, v, path)
 	} else if bErr == nil {
-		p, _ := host.Exec(exec.Command(b, ex[1:]...))
+		p := host.Exec(exec.Command(b, ex[1:]...))
 		volumes.AddHostMount(h, i, p, path)
 	} else {
 		volumes.AddMirrorHostMount(h, i, path)

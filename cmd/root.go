@@ -71,6 +71,9 @@ func init() {
 	rootCmd.PersistentFlags().StringP("dir", "d", "", "Use different folder to make a CWD in the container (default is the host CWD)")
 	viper.BindPFlag("dir", rootCmd.PersistentFlags().Lookup("dir"))
 
+	rootCmd.PersistentFlags().Bool("dind", false, "Disable passing DOCKER_HOST to the container, enable if image has it's own dind and you don't want it to use the host Docker")
+	viper.BindPFlag("dind", rootCmd.PersistentFlags().Lookup("dind"))
+
 	rootCmd.Flags().SetInterspersed(false)
 }
 

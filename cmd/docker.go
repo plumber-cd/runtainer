@@ -36,7 +36,11 @@ func runInDocker(args []string) {
 		dockerExecArgs = append(dockerExecArgs, "--tty")
 	}
 	for _, env := range h.Env {
-		dockerExecArgs = append(dockerExecArgs, "--env", env.Name+"="+env.Value)
+		val := env.Name
+		if env.Value != nil {
+			val = val + "=" + env.Value.(string)
+		}
+		dockerExecArgs = append(dockerExecArgs, "--env", val)
 	}
 	for _, vol := range v.HostMapping {
 		dockerExecArgs = append(dockerExecArgs, "--volume", vol.Src+":"+vol.Dest)

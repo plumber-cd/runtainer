@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"runtime"
@@ -35,7 +34,13 @@ func runInKube(args []string) {
 	kubectlExecArgs = append(kubectlExecArgs, "--restart=Never")
 
 	for _, env := range h.Env {
-		kubectlExecArgs = append(kubectlExecArgs, "--env", env.Name+"="+env.Value)
+		val := env.Name + "="
+		if env.Value != nil {
+			val = val + env.Value.(string)
+		} else {
+			val = val + os.Getenv(env.Name)
+		}
+		kubectlExecArgs = append(kubectlExecArgs, "--env", val)
 	}
 
 	kubectlDryRunExecArgs := []string{"run", "--dry-run", "-o", "yaml"}
@@ -48,11 +53,11 @@ func runInKube(args []string) {
 	kubectlDryRunExecArgs = append(kubectlDryRunExecArgs, "--")
 	kubectlDryRunExecArgs = append(kubectlDryRunExecArgs, containerArgs...)
 	kubectlDryRunExecCommand := exec.Command(h.KubectlPath, kubectlDryRunExecArgs...)
-	kubectlDryRunExecYaml, kubectlDryRunExecOutput := host.Exec(kubectlDryRunExecCommand)
+	kubectlDryRunExecYaml := host.Exec(kubectlDryRunExecCommand)
 	log.Debug.Print(kubectlDryRunExecYaml)
 
 	var pod, service map[interface{}]interface{}
-	dec := yaml.NewDecoder(bytes.NewReader(kubectlDryRunExecOutput))
+	dec := yaml.NewDecoder(strings.NewReader(kubectlDryRunExecYaml))
 	for {
 		var doc map[interface{}]interface{}
 		if dec.Decode(&doc) != nil {

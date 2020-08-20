@@ -1,3 +1,9 @@
+// Package log - by default, all logging is disabled. The notion of this tool is to run something in a container as it was run on the host.
+// That means we absolutely can't tamper with stdout/stderr,
+// but also polluting a file system with extra files probably won't be such a good idea either.
+// But obviously sometimes you need to debug something and need that extra output - so here we have 4 logger levels defined,
+// 3 of which (error/warning/info) can be enabled via --log (or config file), and debug one can be enabled via --verbose.
+// Verbose mode also enables --logs automatically.
 package log
 
 import (
@@ -20,6 +26,10 @@ var (
 	Error       *log.Logger
 )
 
+// SetupLog initializes the loggers that are exported by this module.
+// Returns a callback function that when called will close any open resources by the loggers, such as files.
+// It can be called multiple times, when the logging level settings changes.
+// Every instance of a callback function returned can be used and they are equivalent.
 func SetupLog() func() {
 	if viper.GetBool("verbose") || viper.GetBool("log") {
 		logFileOnce.Do(func() {
@@ -32,6 +42,9 @@ func SetupLog() func() {
 		logWriter = logFile
 	} else {
 		logWriter = ioutil.Discard
+		if logFile != nil {
+			logFile.Close()
+		}
 	}
 
 	var debugWriter io.Writer

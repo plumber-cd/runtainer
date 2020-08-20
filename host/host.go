@@ -13,9 +13,11 @@ import (
 	"github.com/spf13/viper"
 )
 
+// EnvVar represents an environment variable to be defined on the container
+// If the value is nil, variable will be proxied with no explicit value passing.
 type EnvVar struct {
 	Name  string
-	Value string
+	Value interface{}
 }
 
 // Host facts about the host
@@ -65,13 +67,21 @@ func DiscoverHost() {
 
 	h := Host{}
 	if hst := viper.Get("host"); hst != nil {
-		mapstructure.Decode(hst, &h)
+		// when read from viper for the first time (i.e. nothing Set it there yet as the struct) it will be a map[string]interface{}
+		// hence we need to convert it to the struct
+		err := mapstructure.Decode(hst, &h)
+		if err != nil {
+			log.Error.Panic(err)
+		}
 	}
+
 	h.Name = hostName
 	h.User = currentUser.Username
 	h.UID = currentUser.Uid
 	h.GID = currentUser.Gid
 	h.Home = home
+
+	// What to assume a host cwd when executing container
 	if d := viper.GetString("dir"); d != "" {
 		h.Cwd, err = filepath.Abs(d)
 		if err != nil {
@@ -80,18 +90,23 @@ func DiscoverHost() {
 	} else {
 		h.Cwd = cwd
 	}
+
 	h.DockerPath = dockerPath
 	h.KubectlPath = kubectlPath
+
 	if h.Env == nil {
 		h.Env = make([]EnvVar, 0)
 	}
+
+	// publish the host facts to the viper
 	viper.Set("host", h)
 
+	// once host facts are discovered, we may proceed discovering environment variables
 	discoverEnv()
 }
 
-// Exec exec command and return output
-func Exec(cmd *exec.Cmd) (string, []byte) {
+// Exec exec command on the host and return the output
+func Exec(cmd *exec.Cmd) string {
 	log.Info.Printf("Executing: %s", cmd.String())
 
 	out, err := cmd.Output()
@@ -103,5 +118,5 @@ func Exec(cmd *exec.Cmd) (string, []byte) {
 		log.Error.Panic(err)
 	}
 
-	return strings.TrimSpace(string(out)), out
+	return strings.TrimSpace(string(out))
 }
