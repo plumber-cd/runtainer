@@ -8,7 +8,6 @@ import (
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/plumber-cd/runtainer/backends/docker"
-	"github.com/plumber-cd/runtainer/backends/kube"
 	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/utils"
 	"github.com/spf13/cobra"
@@ -47,8 +46,6 @@ var (
 			switch backend {
 			case "docker":
 				docker.Run(backendArgs, containerArgs)
-			case "kube":
-				kube.Run(backendArgs, containerArgs)
 			default:
 				log.Stderr.Fatalf("Unknown backend: %s", backend)
 			}
@@ -76,7 +73,7 @@ func init() {
 		log.Stderr.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().StringP("backend", "b", "docker", "Backend to run container; supported: docker, kube")
+	rootCmd.PersistentFlags().StringP("backend", "b", "docker", "Backend to run container; only docker supported at the moment")
 	if err := viper.BindPFlag("backend", rootCmd.PersistentFlags().Lookup("backend")); err != nil {
 		log.Stderr.Panic(err)
 	}
