@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Discover specific to Go
+// Discover specific to Java
 func Discover() {
 	// get what's already calculated by now
 	h, i, v := discover.GetFromViper()

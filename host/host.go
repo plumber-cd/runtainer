@@ -120,3 +120,27 @@ func Exec(cmd *exec.Cmd) string {
 
 	return strings.TrimSpace(string(out))
 }
+
+// ExecBackend is similar to Exec, but the logic is slightly different.
+// It's designed to run the final backend engine via it's CLI, so it redirects stdin/stdout/stderr and it doesn't return anything,
+// as well as preserving it's exit code upon exiting from this tool.
+// This function will never return, it's an ultimate end of this tool and it will exit the program.
+func ExecBackend(cmd *exec.Cmd) {
+	log.Info.Printf("Executing: %s", cmd.String())
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if ok {
+			log.Error.Print(err)
+			os.Exit(exitErr.ExitCode())
+		}
+
+		log.Error.Panic(err)
+	}
+
+	os.Exit(0)
+}

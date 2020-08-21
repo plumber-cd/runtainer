@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var Version = "dev"
+
 func init() {
 	rootCmd.AddCommand(versionCmd)
 }
@@ -15,6 +17,6 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version",
 	Long:  `All software has versions, right?`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("RunTainer dev")
+		fmt.Println("RunTainer " + Version)
 	},
 }

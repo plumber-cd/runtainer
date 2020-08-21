@@ -1,24 +1,18 @@
-package cmd
+package docker
 
 import (
-	"os"
 	"os/exec"
 	"runtime"
-	"strings"
 
+	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/host"
-	"github.com/plumber-cd/runtainer/image"
 	"github.com/plumber-cd/runtainer/log"
-	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
 )
 
-func runInDocker(args []string) {
-	h := viper.Get("host").(host.Host)
-	i := viper.Get("image").(image.Image)
-	v := viper.Get("volumes").(volumes.Volumes)
-
-	dockerArgs, inDockerArgs := splitArgs(args...)
+// Run this will use all discovered facts and user input to run container using Docker CLI as a backend engine.
+func Run(dockerArgs, inDockerArgs []string) {
+	h, i, v := discover.GetFromViper()
 
 	dockerExecArgs := make([]string, 0)
 	dockerExecArgs = append(dockerExecArgs, "run")
@@ -52,22 +46,7 @@ func runInDocker(args []string) {
 	dockerExecArgs = append(dockerExecArgs, dockerArgs...)
 	dockerExecArgs = append(dockerExecArgs, i.Name)
 	dockerExecArgs = append(dockerExecArgs, inDockerArgs...)
-	log.Debug.Printf("dockerExecArgs: %s", strings.Join(dockerExecArgs, " "))
 
 	dockerExecCommand := exec.Command(h.DockerPath, dockerExecArgs...)
-	log.Info.Printf("Executing docker: %s", dockerExecCommand.String())
-
-	dockerExecCommand.Stdin = os.Stdin
-	dockerExecCommand.Stdout = os.Stdout
-	dockerExecCommand.Stderr = os.Stderr
-
-	if err := dockerExecCommand.Run(); err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
-			log.Error.Print(err)
-			os.Exit(exitErr.ExitCode())
-		}
-
-		log.Error.Panic(err)
-	}
+	host.ExecBackend(dockerExecCommand)
 }

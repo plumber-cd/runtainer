@@ -13,6 +13,6 @@ func main() {
 
 	err := cmd.Execute()
 	if err != nil {
-		log.Error.Panic(err)
+		log.Error.Fatal(err)
 	}
 }

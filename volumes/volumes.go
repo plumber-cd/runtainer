@@ -11,7 +11,7 @@ import (
 	"github.com/plumber-cd/runtainer/host"
 	"github.com/plumber-cd/runtainer/image"
 	"github.com/plumber-cd/runtainer/log"
-	"github.com/spf13/afero"
+	"github.com/plumber-cd/runtainer/utils"
 	"github.com/spf13/viper"
 )
 
@@ -19,8 +19,6 @@ const (
 	rtHostHome = "rt_host_home"
 	rtCwd      = "rt_cwd"
 )
-
-var osFs = afero.Afero{Fs: afero.NewOsFs()}
 
 // Volume struct contains a pair of source and destination paths for mounting
 type Volume struct {
@@ -130,7 +128,7 @@ func (volumes *Volumes) AddHostMount(h host.Host, i image.Image, src, dest strin
 		log.Error.Panic(err)
 	}
 
-	exists, err := osFs.DirExists(s)
+	exists, err := utils.OsFs.DirExists(s)
 	if err != nil {
 		log.Error.Panic(err)
 	}

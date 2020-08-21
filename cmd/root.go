@@ -1,14 +1,16 @@
 package cmd
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/plumber-cd/runtainer/backends/docker"
+	"github.com/plumber-cd/runtainer/backends/kube"
 	"github.com/plumber-cd/runtainer/log"
+	"github.com/plumber-cd/runtainer/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,26 +20,37 @@ var (
 
 	rootCmd = &cobra.Command{
 		Use:                   "runtainer [runtainer flags] image [backend flags] [-- [in container args]]",
-		Short:                 "Run anything as Container",
-		Long:                  "See https://github.com/plumber-cd/runtainer for details",
+		Short:                 "Run anything as a Container",
+		Long:                  "See https://github.com/plumber-cd/runtainer/README.md for details",
 		DisableFlagsInUseLine: true,
 		Args:                  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			// the args will contain all the args unrecognized by cobra after the first positional arg (not dash prefixed)
+			// the first not dash prefixed arg must be the image name
 			imageName := args[0]
-			inArgs := args[1:]
+			// rest of the args split by -- delimiter
+			// See POSIX chapter 12.02, Guideline 10: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02
+			// On the left, args considered to be passed to the backend (docker/kubectl/etc), on the right args considered to be passed to the container
+			backendArgs, containerArgs := splitArgs(args[1:])
 
+			// run discovery routines that will publish all the facts to viper for backend engine to interpret
 			discover(imageName)
 
+			// just for debugging, dump full viper data before passing it to the backends
 			allSettings, err := json.MarshalIndent(viper.AllSettings(), "", "  ")
 			if err != nil {
 				log.Error.Panic(err)
 			}
 			log.Debug.Printf("Settings: %s", string(allSettings))
 
-			if viper.GetBool("kube") {
-				runInKube(inArgs)
-			} else {
-				runInDocker(inArgs)
+			backend := viper.GetString("backend")
+			switch backend {
+			case "docker":
+				docker.Run(backendArgs, containerArgs)
+			case "kube":
+				kube.Run(backendArgs, containerArgs)
+			default:
+				log.Stderr.Fatalf("Unknown backend: %s", backend)
 			}
 		},
 	}
@@ -51,37 +64,55 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.runtainer.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "global config file (default is $HOME/.runtainer.yaml)")
 
 	rootCmd.PersistentFlags().BoolP("log", "l", false, "Enable logs")
-	viper.BindPFlag("log", rootCmd.PersistentFlags().Lookup("log"))
+	if err := viper.BindPFlag("log", rootCmd.PersistentFlags().Lookup("log")); err != nil {
+		log.Stderr.Panic(err)
+	}
 
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose mode (also enables logs)")
-	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+		log.Stderr.Panic(err)
+	}
 
-	rootCmd.PersistentFlags().BoolP("kube", "k", false, "Use kubectl as backend instead of docker")
-	viper.BindPFlag("kube", rootCmd.PersistentFlags().Lookup("kube"))
+	rootCmd.PersistentFlags().StringP("backend", "b", "docker", "Backend to run container; supported: docker, kube")
+	if err := viper.BindPFlag("backend", rootCmd.PersistentFlags().Lookup("backend")); err != nil {
+		log.Stderr.Panic(err)
+	}
 
 	rootCmd.PersistentFlags().BoolP("stdin", "i", true, "Use --interactive for docker and --stdin for kubectl")
-	viper.BindPFlag("stdin", rootCmd.PersistentFlags().Lookup("stdin"))
+	if err := viper.BindPFlag("stdin", rootCmd.PersistentFlags().Lookup("stdin")); err != nil {
+		log.Stderr.Panic(err)
+	}
 
 	rootCmd.PersistentFlags().BoolP("tty", "t", true, "Use --tty for backend, disable if piping output into some other stdin")
-	viper.BindPFlag("tty", rootCmd.PersistentFlags().Lookup("tty"))
+	if err := viper.BindPFlag("tty", rootCmd.PersistentFlags().Lookup("tty")); err != nil {
+		log.Stderr.Panic(err)
+	}
 
 	rootCmd.PersistentFlags().StringP("dir", "d", "", "Use different folder to make a CWD in the container (default is the host CWD)")
-	viper.BindPFlag("dir", rootCmd.PersistentFlags().Lookup("dir"))
+	if err := viper.BindPFlag("dir", rootCmd.PersistentFlags().Lookup("dir")); err != nil {
+		log.Stderr.Panic(err)
+	}
 
 	rootCmd.PersistentFlags().Bool("dind", false, "Disable passing DOCKER_HOST to the container, enable if image has it's own dind and you don't want it to use the host Docker")
-	viper.BindPFlag("dind", rootCmd.PersistentFlags().Lookup("dind"))
+	if err := viper.BindPFlag("dind", rootCmd.PersistentFlags().Lookup("dind")); err != nil {
+		log.Stderr.Panic(err)
+	}
 
 	rootCmd.Flags().SetInterspersed(false)
 }
 
 func initConfig() {
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	// if cfgFile is set, we will use it instead of default global user home location
 	if cfgFile != "" {
-		if !fileExists(cfgFile) {
-			log.Error.Fatalf("Config file not found: %s", cfgFile)
+		exists, err := utils.FileExists(cfgFile)
+		if err != nil {
+			log.Error.Panic(err)
+		}
+		if !exists {
+			log.Stderr.Fatalf("Global config file not found: %s", cfgFile)
 		}
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -94,40 +125,69 @@ func initConfig() {
 
 		// Search config in home directory with name ".runtainer" (without extension).
 		viper.SetConfigName("config")
-		viper.AddConfigPath(home + "/.runtainer")
+		viper.AddConfigPath(filepath.Join(home, ".runtainer"))
 	}
 
+	// This is so we can set any nested viper settings via env variables, replacing every . with _
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	// RT short from RunTainer
 	viper.SetEnvPrefix("RT")
 	viper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err == nil {
+	if err := viper.ReadInConfig(); err != nil {
+		switch err.(type) {
+		case viper.ConfigFileNotFoundError:
+			log.Debug.Printf("Global %s, skipping...", err)
+		default:
+			log.Stderr.Panic(err)
+		}
+	} else {
 		log.Debug.Print("Using global config file:", viper.ConfigFileUsed())
 	}
 
+	// try to read (if exists) local config file in the cwd
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Error.Panic(err)
 	}
-	viper.SetConfigName(".runtainer")
-	viper.AddConfigPath(cwd)
+	readLocalConfig(cwd)
 
-	if err := viper.MergeInConfig(); err == nil {
-		log.Debug.Print("Using local config file:", viper.ConfigFileUsed())
+	// by the time we load viper configs, we haven't discovered the host yet,
+	// so we couldn't use host.Cwd above
+	// but just in case if user provided some custom directory, check for possible config there too
+	if d := viper.GetString("dir"); d != "" {
+		readLocalConfig(d)
 	}
 
 	// Re-initialize loggers in case output settings changed
 	log.SetupLog()
 }
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
+// readLocalConfig read viper config in the directory.
+// Due to https://github.com/spf13/viper/issues/181,
+// seems like there's not really a way to override with multiple config files.
+// So we will read local config files into a separate viper instances, and then use MergeConfigMap with AllSettings.
+func readLocalConfig(d string) {
+	v := viper.New()
+	v.SetConfigName(".runtainer")
+	v.AddConfigPath(d)
+	if err := v.ReadInConfig(); err != nil {
+		switch err.(type) {
+		case viper.ConfigFileNotFoundError:
+			log.Debug.Printf("Local %s, skipping...", err)
+		default:
+			log.Stderr.Panic(err)
+		}
+	} else {
+		log.Debug.Print("Using local config file:", v.ConfigFileUsed())
+		if err := viper.MergeConfigMap(v.AllSettings()); err != nil {
+			log.Stderr.Panic(err)
+		}
 	}
-	return !info.IsDir()
 }
 
-func splitArgs(args ...string) ([]string, []string) {
+// splitArgs as per that POSIX standard, find the -- delimiter and split args by it
+func splitArgs(args []string) ([]string, []string) {
 	log.Debug.Printf("args: %s", strings.Join(args, " "))
 	backendArgs := args
 	var containerArgs []string
@@ -141,12 +201,4 @@ func splitArgs(args ...string) ([]string, []string) {
 	log.Debug.Printf("backendArgs: %s", strings.Join(backendArgs, " "))
 	log.Debug.Printf("containerArgs: %s", strings.Join(containerArgs, " "))
 	return backendArgs, containerArgs
-}
-
-func randomHex(n int) string {
-	bytes := make([]byte, n)
-	if _, err := rand.Read(bytes); err != nil {
-		log.Error.Panic(err)
-	}
-	return hex.EncodeToString(bytes)
 }

@@ -1,4 +1,4 @@
-package cmd
+package kube
 
 import (
 	"os"
@@ -6,23 +6,19 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/host"
-	"github.com/plumber-cd/runtainer/image"
 	"github.com/plumber-cd/runtainer/log"
-	"github.com/plumber-cd/runtainer/volumes"
+	"github.com/plumber-cd/runtainer/utils"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
 
-func runInKube(args []string) {
-	h := viper.Get("host").(host.Host)
-	i := viper.Get("image").(image.Image)
-	v := viper.Get("volumes").(volumes.Volumes)
+func Run(kubeArgs, containerArgs []string) {
+	h, i, v := discover.GetFromViper()
 
-	suffix := randomHex(4)
+	suffix := utils.RandomHex(4)
 	podName := "runtainer-" + suffix
-
-	kubeArgs, containerArgs := splitArgs(args...)
 
 	kubectlExecArgs := make([]string, 0)
 	kubectlExecArgs = append(kubectlExecArgs, podName)
@@ -114,21 +110,7 @@ func runInKube(args []string) {
 	log.Debug.Printf("dockerExecArgs: %s", strings.Join(kubectlExecArgs, " "))
 
 	dockerExecCommand := exec.Command(h.DockerPath, kubectlExecArgs...)
-	log.Info.Printf("Executing docker: %s", dockerExecCommand.String())
-
-	dockerExecCommand.Stdin = os.Stdin
-	dockerExecCommand.Stdout = os.Stdout
-	dockerExecCommand.Stderr = os.Stderr
-
-	if err := dockerExecCommand.Run(); err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
-			log.Error.Print(err)
-			os.Exit(exitErr.ExitCode())
-		}
-
-		log.Error.Panic(err)
-	}
+	host.ExecBackend(dockerExecCommand)
 }
 
 func getFromMap(m *map[interface{}]interface{}, k string) *interface{} {
