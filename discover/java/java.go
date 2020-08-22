@@ -3,6 +3,7 @@ package java
 import (
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
+	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
 )
 
@@ -13,7 +14,10 @@ func Discover() {
 	// get what's already calculated by now
 	h, i, v := discover.GetFromViper()
 
-	v.AddEnvVarToDirMountOrDefault(h, i, "MAVEN_HOME", "~/.m2")
+	v.AddHostMount(h, i, "~/.m2",
+		&volumes.DiscoverEnvVar{EnvVar: "MAVEN_HOME"},
+		&volumes.DiscoverMirror{},
+	)
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("volumes", v)

@@ -3,6 +3,7 @@ package system
 import (
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
+	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
 )
 
@@ -13,9 +14,15 @@ func Discover() {
 	// get what's already calculated by now
 	h, i, v := discover.GetFromViper()
 
-	v.AddMirrorHostMount(h, i, "~/.local")
-	v.AddMirrorHostMount(h, i, "~/.cache")
-	v.AddMirrorHostMount(h, i, "~/.ssh")
+	v.AddHostMount(h, i, "~/.local",
+		&volumes.DiscoverMirror{},
+	)
+	v.AddHostMount(h, i, "~/.cache",
+		&volumes.DiscoverMirror{},
+	)
+	v.AddHostMount(h, i, "~/.ssh",
+		&volumes.DiscoverMirror{},
+	)
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("volumes", v)

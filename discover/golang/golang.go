@@ -3,6 +3,7 @@ package golang
 import (
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
+	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
 )
 
@@ -18,8 +19,16 @@ func Discover() {
 	// get what's already calculated by now
 	h, i, v := discover.GetFromViper()
 
-	v.AddEnvVarToDirMountOrExecOrDefault(h, i, "GOPATH", []string{"go", "env", "GOPATH"}, defaultGoPath)
-	v.AddEnvVarToDirMountOrExecOrDefault(h, i, "GOCACHE", []string{"go", "env", "GOCACHE"}, defaultGoCache)
+	v.AddHostMount(h, i, defaultGoPath,
+		&volumes.DiscoverEnvVar{EnvVar: "GOPATH"},
+		&volumes.DiscoverExec{Args: []string{"go", "env", "GOPATH"}},
+		&volumes.DiscoverMirror{},
+	)
+	v.AddHostMount(h, i, defaultGoCache,
+		&volumes.DiscoverEnvVar{EnvVar: "GOCACHE"},
+		&volumes.DiscoverExec{Args: []string{"go", "env", "GOCACHE"}},
+		&volumes.DiscoverMirror{},
+	)
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("volumes", v)

@@ -3,6 +3,7 @@ package aws
 import (
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
+	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
 )
 
@@ -16,7 +17,10 @@ func Discover() {
 	h.AddMirrorEnvVar("AWS_PROFILE")
 	h.AddMirrorEnvVar("AWS_DEFAULT_REGION")
 
-	v.AddEnvVarToFileMountOrDefault(h, i, "AWS_SHARED_CREDENTIALS_FILE", "~/.aws")
+	v.AddHostMount(h, i, "~/.aws",
+		&volumes.DiscoverEnvVar{Config: volumes.DiscoveryConfig{UseParent: true}, EnvVar: "AWS_SHARED_CREDENTIALS_FILE"},
+		&volumes.DiscoverMirror{},
+	)
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("host", h)

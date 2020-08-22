@@ -1,11 +1,14 @@
 package helm
 
 import (
-	"runtime"
+	"image"
 
 	"github.com/plumber-cd/runtainer/discover"
+	"github.com/plumber-cd/runtainer/host"
 	"github.com/plumber-cd/runtainer/log"
+	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
+	"helm.sh/helm/v3/pkg/helmpath"
 )
 
 // Discover specific to Helm
@@ -15,16 +18,20 @@ func Discover() {
 	// get what's already calculated by now
 	h, i, v := discover.GetFromViper()
 
-	v.AddMirrorHostMount(h, i, "~/.helm")
+	v.AddHostMount(h, i, "~/.helm",
+		&volumes.DiscoverMirror{},
+	)
 
-	switch runtime.GOOS {
-	case "darwin":
-		v.AddHostMount(h, i, "~/Library/Preferences/helm", "~/.config/helm")
-		v.AddHostMount(h, i, "~/Library/Caches/helm", "~/.cache/helm")
-	default:
-		v.AddMirrorHostMount(h, i, "~/.config/helm")
-		v.AddMirrorHostMount(h, i, "~/.cache/helm")
-	}
+	v.AddHostMount(h, i, "~/.cache/helm",
+		&volumes.DiscoverCallback{Callback: func(h host.Host, i image.Image, dest string) (bool, string) {
+			return true, helmpath.CachePath("")
+		}},
+	)
+	v.AddHostMount(h, i, "~/.config/helm",
+		&volumes.DiscoverCallback{Callback: func(h host.Host, i image.Image, dest string) (bool, string) {
+			return true, helmpath.ConfigPath("")
+		}},
+	)
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("volumes", v)

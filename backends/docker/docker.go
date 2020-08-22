@@ -36,14 +36,14 @@ func Run(dockerArgs, inDockerArgs []string) {
 		if env.Value != nil {
 			val = val + "=" + env.Value.(string)
 		}
-		log.Debug.Printf("Adding env variable: %s", val)
+		log.Info.Printf("Adding env variable: %s", val)
 		dockerExecArgs = append(dockerExecArgs, "--env", val)
 	}
 	for _, vol := range v.HostMapping {
-		log.Debug.Printf("Adding volume: %s:%s", vol.Src, vol.Dest)
+		log.Info.Printf("Adding volume: %s:%s", vol.Src, vol.Dest)
 		dockerExecArgs = append(dockerExecArgs, "--volume", vol.Src+":"+vol.Dest)
 	}
-	log.Debug.Printf("Using cwd: %s", v.ContainerCwd)
+	log.Info.Printf("Using cwd: %s", v.ContainerCwd)
 	dockerExecArgs = append(dockerExecArgs, "--workdir", v.ContainerCwd)
 	if runtime.GOOS != "windows" {
 		log.Debug.Printf("Since the platform is %s, add GID %s", runtime.GOOS, h.GID)

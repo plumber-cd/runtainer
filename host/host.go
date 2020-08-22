@@ -112,7 +112,7 @@ func DiscoverHost() {
 
 // Exec exec command on the host and return the output
 func Exec(cmd *exec.Cmd) string {
-	log.Info.Printf("Executing: %s", cmd.String())
+	log.Debug.Printf("Executing: %s", cmd.String())
 
 	out, err := cmd.Output()
 	if err != nil {

@@ -1,6 +1,7 @@
 package volumes
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -11,7 +12,6 @@ import (
 	"github.com/plumber-cd/runtainer/host"
 	"github.com/plumber-cd/runtainer/image"
 	"github.com/plumber-cd/runtainer/log"
-	"github.com/plumber-cd/runtainer/utils"
 	"github.com/spf13/viper"
 )
 
@@ -19,6 +19,120 @@ const (
 	rtHostHome = "rt_host_home"
 	rtCwd      = "rt_cwd"
 )
+
+// DiscoveryConfig various configuration for discovery
+type DiscoveryConfig struct {
+	UseParent bool
+}
+
+func (dc *DiscoveryConfig) string() string {
+	return fmt.Sprintf("DiscoveryConfig{UseParent: %v}", dc.UseParent)
+}
+
+// Discover is an interface for various discoverers
+type Discover interface {
+	// Discover must return true only if discovered, validated and ensured it is usable
+	discover(h host.Host, i image.Image, dest string) (found bool, src string)
+}
+
+// DiscoverMirror basically is a default fallback discoverer.
+// It will use mounting dest and try it as a source on the host.
+// Useful for mirroring user home folders like .aws, .ssh and etc.
+type DiscoverMirror struct {
+	Config DiscoveryConfig
+}
+
+func (d *DiscoverMirror) string() string {
+	return fmt.Sprintf("DiscoverMirror{} with %s", d.Config.string())
+}
+
+func (d *DiscoverMirror) discover(h host.Host, _ image.Image, dest string) (bool, string) {
+	log.Debug.Printf("%s, dest: %s", d.string(), dest)
+	return checkLocalDir(h, d.Config, dest)
+}
+
+// DiscoverDir uses Path specified to discover dir.
+// Useful for mounting directories that we know or can calculate specific path to.
+type DiscoverDir struct {
+	Config DiscoveryConfig
+	Path   string
+}
+
+func (d *DiscoverDir) string() string {
+	return fmt.Sprintf("DiscoverDir{Path: %s} with %s", d.Path, d.Config.string())
+}
+
+func (d *DiscoverDir) discover(h host.Host, _ image.Image, dest string) (bool, string) {
+	log.Debug.Printf("%s", d.string())
+	return checkLocalDir(h, d.Config, d.Path)
+}
+
+// DiscoverEnvVar look for environment variable.
+// Useful to mount folders that might be defined as env variables like MAVEN_HOME.
+type DiscoverEnvVar struct {
+	Config DiscoveryConfig
+	EnvVar string
+}
+
+func (d *DiscoverEnvVar) string() string {
+	return fmt.Sprintf("DiscoverEnvVar{EnvVar: %s} with %s", d.EnvVar, d.Config.string())
+}
+
+func (d *DiscoverEnvVar) discover(h host.Host, _ image.Image, _ string) (bool, string) {
+	log.Debug.Printf("%s", d.string())
+	src, exists := os.LookupEnv(d.EnvVar)
+	if !exists {
+		log.Debug.Printf("%s variable was not found", d.EnvVar)
+		return false, ""
+	}
+	log.Debug.Printf("Found %s=%s", d.EnvVar, src)
+	return checkLocalDir(h, d.Config, src)
+}
+
+// DiscoverExec will execute a command on the host and consider it's output as a source.
+// Useful to mount folders that might be defined by a command like `go env`.
+type DiscoverExec struct {
+	Config DiscoveryConfig
+	Args   []string
+}
+
+func (d *DiscoverExec) string() string {
+	return fmt.Sprintf("DiscoverExec{Args: [%s]} with %s", strings.Join(d.Args, ", "), d.Config.string())
+}
+
+func (d *DiscoverExec) discover(h host.Host, _ image.Image, _ string) (bool, string) {
+	log.Debug.Printf("%s", d.string())
+	bin, err := exec.LookPath(d.Args[0])
+	if bin == "" || err != nil {
+		log.Debug.Printf("%s binary was not found (%s)", d.Args[0], err)
+		return false, ""
+	}
+	log.Debug.Printf("Found binary %s", bin)
+	src := host.Exec(exec.Command(bin, d.Args[1:]...))
+	return checkLocalDir(h, d.Config, src)
+}
+
+// DiscoverCallback will execute a callback function.
+// Useful to mount folders that might be defined by a some other Go code, such as https://github.com/helm/helm/blob/v3.3.0/pkg/helmpath/lazypath_windows.go.
+type DiscoverCallback struct {
+	Config   DiscoveryConfig
+	Callback func(h host.Host, i image.Image, dest string) (bool, string)
+}
+
+func (d *DiscoverCallback) string() string {
+	return fmt.Sprintf("DiscoverCallback{Callback: <...>} with %s", d.Config.string())
+}
+
+func (d *DiscoverCallback) discover(h host.Host, i image.Image, dest string) (bool, string) {
+	log.Debug.Printf("%s, dest: %s", d.string(), dest)
+	exists, src := d.Callback(h, i, dest)
+	if !exists {
+		log.Debug.Printf("Callback did not found any source (%s)", src)
+		return exists, src
+	}
+	log.Debug.Printf("Callback returned %s", src)
+	return checkLocalDir(h, d.Config, src)
+}
 
 // Volume struct contains a pair of source and destination paths for mounting
 type Volume struct {
@@ -32,6 +146,26 @@ type Volumes struct {
 	ContainerCwd string
 	// HostMapping list of volumes to mount from the host
 	HostMapping []Volume
+}
+
+// AddHostMount adds a pair of src:dest to the mounts.
+// Src will be automatically discovered accordingly to configured discovery sources.
+// Try each source until something found, if reached the end and nothing found - do nothing.
+// Only for mounting directories.
+// Automatically resolves ~ to the user home (both host and container).
+func (v *Volumes) AddHostMount(h host.Host, i image.Image, dest string, sources ...Discover) {
+	log.Debug.Printf("Discovering potential volume mount for %s", dest)
+	for _, source := range sources {
+		found, src := source.discover(h, i, dest)
+		if found {
+			log.Debug.Printf("Match found %s:%s", src, dest)
+			dest = resolveTilde(i.Home, dest)
+			v.HostMapping = append(v.HostMapping, Volume{Src: src, Dest: dest})
+			log.Debug.Printf("Added volume %s:%s", src, dest)
+			return
+		}
+	}
+	log.Debug.Printf("Nothing found for volume mount %s", dest)
 }
 
 // DiscoverVolumes analyze environment to determine what to mount
@@ -76,11 +210,7 @@ func DiscoverVolumes() {
 		if err != nil {
 			log.Stderr.Panic(err)
 		}
-		// just to get rid of . and ..
-		containerRtHomePath, err = filepath.Abs(containerRtHomePath)
-		if err != nil {
-			log.Stderr.Panic(err)
-		}
+		log.Info.Printf("1: %s", containerRtHomePath)
 		// convert path separator to what's in the image
 		// note that filepath.FromSlash and filepath.ToSlash won't work as they would rely on the host OS file separator
 		switch i.PathSeparator {
@@ -91,8 +221,10 @@ func DiscoverVolumes() {
 		default:
 			log.Stderr.Fatalf("Unknown path separator: %s", i.PathSeparator)
 		}
+		log.Info.Printf("3: %s", containerRtHomePath)
 		// again, this is for the container so host path separator is irrelevant, hence path not filepath
 		volumes.ContainerCwd = path.Join(hostHomeMount, containerRtHomePath)
+		log.Info.Printf("4: %s", volumes.ContainerCwd)
 	} else {
 		log.Debug.Printf("Host cwd %s seems to be outside user home %s, calculating and mounting container cwd accordingly", h.Cwd, h.Home)
 		// otherwise, we need to mount host home separately
@@ -106,95 +238,4 @@ func DiscoverVolumes() {
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("volumes", volumes)
-}
-
-// Resolve ~ into user home.
-// This is platform agnostic - always uses slash as a separator.
-func resolveTilde(h, p string) string {
-	// resolve ~ (ir present) to the actual user home
-	if strings.HasPrefix(p, "~") {
-		p = strings.TrimPrefix(p, "~")
-		p = path.Join(h, p)
-	}
-
-	return p
-}
-
-// AddHostMount adds a pair of src:dest to the mounts.
-// If src didn't existed - does nothing.
-// Only for mounting directories.
-// Automatically resolves ~ to the user home (both host and container).
-func (volumes *Volumes) AddHostMount(h host.Host, i image.Image, src, dest string) {
-	log.Debug.Printf("Checking potential volume %s:%s", src, dest)
-
-	src = resolveTilde(h.Home, src)
-	dest = resolveTilde(i.Home, dest)
-
-	// just in case - get rid of .. and etc
-	// do that only for src as filepath uses host file separator
-	s, err := filepath.Abs(src)
-	if err != nil {
-		log.Stderr.Panic(err)
-	}
-
-	exists, err := utils.OsFs.DirExists(s)
-	if err != nil {
-		log.Stderr.Panic(err)
-	}
-
-	if exists {
-		log.Debug.Printf("Adding a valid volume %s:%s", src, dest)
-		volumes.HostMapping = append(volumes.HostMapping, Volume{Src: src, Dest: dest})
-	}
-}
-
-// AddMirrorHostMount basically falls back to addHostMount, using p as both source and dest.
-// Useful for mirroring user home folders like .aws, .ssh and etc.
-func (volumes *Volumes) AddMirrorHostMount(h host.Host, i image.Image, p string) {
-	volumes.AddHostMount(h, i, p, p)
-}
-
-// AddEnvVarToDirMountOrDefault look if environment variable v is defined,
-// if yes - use it's value as src and path as dest and call addHostMount;
-// otherwise - use path to call addMirrorHostMount.
-// Useful to mount folders that might be defined as env variables like MAVEN_HOME, but if not always has default hardcoded location.
-func (volumes *Volumes) AddEnvVarToDirMountOrDefault(h host.Host, i image.Image, v string, path string) {
-	p, e := os.LookupEnv(v)
-	if e {
-		volumes.AddHostMount(h, i, p, path)
-	} else {
-		volumes.AddMirrorHostMount(h, i, path)
-	}
-}
-
-// AddEnvVarToDirMountOrExecOrDefault look if environment variable v is defined and use AddEnvVarToDirMountOrDefault in that case,
-// if not try to read exec output assuming it's an equivalent for the env value;
-// otherwise - use path to call addMirrorHostMount.
-// Useful to mount folders that might be defined as env variables like GOPATH or GOCACHE, or by a command like `go env`,
-// and if not always has default hardcoded location.
-func (volumes *Volumes) AddEnvVarToDirMountOrExecOrDefault(h host.Host, i image.Image, v string, ex []string, path string) {
-	// we might use `go env` to determine some values later
-	b, bErr := exec.LookPath(ex[0])
-
-	if _, exists := os.LookupEnv(v); exists {
-		volumes.AddEnvVarToDirMountOrDefault(h, i, v, path)
-	} else if bErr == nil {
-		p := host.Exec(exec.Command(b, ex[1:]...))
-		volumes.AddHostMount(h, i, p, path)
-	} else {
-		volumes.AddMirrorHostMount(h, i, path)
-	}
-}
-
-// AddEnvVarToFileMountOrDefault it basically mimics addEnvVarToDirMountOrDefault, except that environment variable treated as a path to file.
-// We only mount directories, so parent directory to the file will be determined and used for mounting via addHostMount.
-// Useful for mounting folders that may be defined as env variables by a path to the file,
-// such as AWS_SHARED_CREDENTIALS_FILE and KUBECONFIG, but if not always has default hardcoded location.
-func (volumes *Volumes) AddEnvVarToFileMountOrDefault(h host.Host, i image.Image, v string, path string) {
-	p, e := os.LookupEnv(v)
-	if e {
-		volumes.AddHostMount(h, i, filepath.Dir(p), path)
-	} else {
-		volumes.AddMirrorHostMount(h, i, path)
-	}
 }

@@ -3,6 +3,7 @@ package kube
 import (
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
+	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
 )
 
@@ -13,7 +14,10 @@ func Discover() {
 	// get what's already calculated by now
 	h, i, v := discover.GetFromViper()
 
-	v.AddEnvVarToFileMountOrDefault(h, i, "KUBECONFIG", "~/.kube")
+	v.AddHostMount(h, i, "~/.kube",
+		&volumes.DiscoverEnvVar{Config: volumes.DiscoveryConfig{UseParent: true}, EnvVar: "KUBECONFIG"},
+		&volumes.DiscoverMirror{},
+	)
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("volumes", v)
