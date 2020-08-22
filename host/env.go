@@ -11,6 +11,8 @@ import (
 
 // discoverEnv use to define RunTainer specific known environment variables
 func discoverEnv() {
+	log.Debug.Print("Discover Environment")
+
 	h := viper.Get("host").(Host)
 
 	// just define soma standard host facts as env variables
@@ -23,11 +25,12 @@ func discoverEnv() {
 	// We will look into DOCKER_HOST and if it pointing to the local network interface,
 	// we need to translate it to host.docker.internal so it's accessible from within the container.
 	if !viper.GetBool("dind") {
+		log.Debug.Print("Checking DOCKER_HOST for dind")
 		if dockerHost, dockerHostExists := os.LookupEnv("DOCKER_HOST"); dockerHostExists {
 			log.Debug.Printf("DOCKER_HOST env var detected: %s", dockerHost)
 			u, err := url.Parse(dockerHost)
 			if err != nil {
-				log.Error.Panic(err)
+				log.Stderr.Panic(err)
 			}
 			if u.Hostname() == "localhost" || strings.HasPrefix(u.Hostname(), "127.") {
 				internal := "host.docker.internal"
@@ -39,36 +42,34 @@ func discoverEnv() {
 		}
 	}
 
+	log.Debug.Print("Discover RT_VAR_* and RT_EVAR_*")
 	// now we mirror any env vars that starts with RT_VAR_* to account for any possible user-defined vars
 	for _, e := range os.Environ() {
-		k := strings.SplitN(e, "=", 2)[0]
-		if strings.HasPrefix(k, "RT_VAR_") {
-			h.AddMirrorEnvVar(k)
-		}
-	}
-
-	// also pass any env vars that starts with RT_EVAR_* removing the prefix
-	// to allow non-prefixed env variables in the container
-	for _, e := range os.Environ() {
 		k := strings.SplitN(e, "=", 2)
+		if strings.HasPrefix(k[0], "RT_VAR_") {
+			h.AddMirrorEnvVar(k[0])
+		}
 		if strings.HasPrefix(k[0], "RT_EVAR_") {
 			h.AddEnvVarVal(strings.TrimPrefix(k[0], "RT_EVAR_"), k[1])
 		}
 	}
 
-	// publish what we've calculated so far to viper
+	log.Debug.Print("Publish to viper")
 	viper.Set("host", h)
 }
 
 // AddEnvVarVal add an env with a given value to the container
 func (h *Host) AddEnvVarVal(e, v string) {
+	log.Debug.Printf("Add %s=%s", e, v)
 	h.Env = append(h.Env, EnvVar{Name: e, Value: v})
 }
 
 // AddEnvVar takes the env var on the host (if defined)
 // and explicitly defines it as var:val pair for the container
 func (h *Host) AddEnvVar(e string) {
+	log.Debug.Printf("Duplicate %s", e)
 	if v, ex := os.LookupEnv(e); ex {
+		log.Debug.Printf("Duplicate (existing) %s=%s", e, v)
 		(*h).Env = append((*h).Env, EnvVar{Name: v, Value: v})
 	}
 }
@@ -76,7 +77,9 @@ func (h *Host) AddEnvVar(e string) {
 // AddMirrorEnvVar just like AddEnvVar but does not explicitly defines a value,
 // just mirrors it from the host
 func (h *Host) AddMirrorEnvVar(e string) {
+	log.Debug.Printf("Mirror %s", e)
 	if _, ex := os.LookupEnv(e); ex {
+		log.Debug.Printf("Mirror (existing) %s", e)
 		(*h).Env = append((*h).Env, EnvVar{Name: e})
 	}
 }

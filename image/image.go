@@ -4,6 +4,7 @@ import (
 	"os/exec"
 
 	"github.com/plumber-cd/runtainer/host"
+	"github.com/plumber-cd/runtainer/log"
 	"github.com/spf13/viper"
 )
 
@@ -18,6 +19,8 @@ type Image struct {
 
 // DiscoverImage discover facts about the image
 func DiscoverImage(image string) {
+	log.Debug.Print("Discover image")
+
 	// TODO: for now we assume all containers are Linux
 	os := "linux"
 	pathSeparator := "/"
@@ -26,6 +29,7 @@ func DiscoverImage(image string) {
 	homeCmd := Cmd(image, "(cd && pwd)")
 	home := host.Exec(homeCmd)
 
+	log.Debug.Print("Publish to viper")
 	viper.Set("image", Image{
 		Name:          image,
 		OS:            os,
@@ -42,5 +46,6 @@ func DiscoverImage(image string) {
 // This behavior may and certainly will change in future towards
 // improving execution speed and using actually configured backend.
 func Cmd(image string, cmd string) *exec.Cmd {
+	log.Debug.Printf("Executing in image %s: %s", image, cmd)
 	return exec.Command(viper.Get("host").(host.Host).DockerPath, "run", "--rm", "--entrypoint", "sh", image, "-c", cmd)
 }

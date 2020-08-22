@@ -12,6 +12,8 @@ import (
 
 // Run this will use all discovered facts and user input to run container using Docker CLI as a backend engine.
 func Run(dockerArgs, inDockerArgs []string) {
+	log.Debug.Print("Starting docker backend")
+
 	h, i, v := discover.GetFromViper()
 
 	dockerExecArgs := make([]string, 0)
@@ -34,13 +36,17 @@ func Run(dockerArgs, inDockerArgs []string) {
 		if env.Value != nil {
 			val = val + "=" + env.Value.(string)
 		}
+		log.Debug.Printf("Adding env variable: %s", val)
 		dockerExecArgs = append(dockerExecArgs, "--env", val)
 	}
 	for _, vol := range v.HostMapping {
+		log.Debug.Printf("Adding volume: %s:%s", vol.Src, vol.Dest)
 		dockerExecArgs = append(dockerExecArgs, "--volume", vol.Src+":"+vol.Dest)
 	}
+	log.Debug.Printf("Using cwd: %s", v.ContainerCwd)
 	dockerExecArgs = append(dockerExecArgs, "--workdir", v.ContainerCwd)
 	if runtime.GOOS != "windows" {
+		log.Debug.Printf("Since the platform is %s, add GID %s", runtime.GOOS, h.GID)
 		dockerExecArgs = append(dockerExecArgs, "--group-add", h.GID)
 	}
 	dockerExecArgs = append(dockerExecArgs, dockerArgs...)

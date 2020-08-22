@@ -8,10 +8,13 @@ import (
 	"github.com/plumber-cd/runtainer/discover/system"
 	"github.com/plumber-cd/runtainer/host"
 	"github.com/plumber-cd/runtainer/image"
+	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/volumes"
 )
 
 func discover(imageName string) {
+	log.Debug.Print("Start discovery routine")
+
 	host.DiscoverHost()
 	image.DiscoverImage(imageName)
 	volumes.DiscoverVolumes()

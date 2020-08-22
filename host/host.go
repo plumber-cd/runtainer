@@ -35,70 +35,75 @@ type Host struct {
 
 // DiscoverHost discover information about the host
 func DiscoverHost() {
-	hostName, err := os.Hostname()
-	if err != nil {
-		log.Error.Panic(err)
-	}
-
-	currentUser, err := user.Current()
-	if err != nil {
-		log.Error.Panic(err)
-	}
-
-	home, err := homedir.Dir()
-	if err != nil {
-		log.Error.Panic(err)
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Error.Panic(err)
-	}
-
-	dockerPath, err := exec.LookPath("docker")
-	if err != nil {
-		log.Error.Panic(err)
-	}
-
-	kubectlPath, err := exec.LookPath("kubectl")
-	if err != nil && viper.GetBool("kube") {
-		log.Error.Panic(err)
-	}
+	log.Debug.Print("Discover host")
 
 	h := Host{}
 	if hst := viper.Get("host"); hst != nil {
+		log.Debug.Print("Load user defined host settings")
 		// when read from viper for the first time (i.e. nothing Set it there yet as the struct) it will be a map[string]interface{}
 		// hence we need to convert it to the struct
 		err := mapstructure.Decode(hst, &h)
 		if err != nil {
-			log.Error.Panic(err)
+			log.Stderr.Panic(err)
 		}
 	}
 
+	hostName, err := os.Hostname()
+	if err != nil {
+		log.Stderr.Panic(err)
+	}
 	h.Name = hostName
+
+	currentUser, err := user.Current()
+	if err != nil {
+		log.Stderr.Panic(err)
+	}
 	h.User = currentUser.Username
 	h.UID = currentUser.Uid
 	h.GID = currentUser.Gid
+
+	home, err := homedir.Dir()
+	if err != nil {
+		log.Stderr.Panic(err)
+	}
 	h.Home = home
 
 	// What to assume a host cwd when executing container
 	if d := viper.GetString("dir"); d != "" {
+		log.Debug.Printf("Use user provided cwd %s", d)
 		h.Cwd, err = filepath.Abs(d)
 		if err != nil {
-			log.Error.Panic(err)
+			log.Stderr.Panic(err)
 		}
 	} else {
+		log.Debug.Print("Use actual cwd")
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Stderr.Panic(err)
+		}
+
 		h.Cwd = cwd
 	}
 
+	dockerPath, err := exec.LookPath("docker")
+	if err != nil {
+		log.Stderr.Panic(err)
+	}
 	h.DockerPath = dockerPath
+
+	kubectlPath, err := exec.LookPath("kubectl")
+	if err != nil && viper.GetBool("kube") {
+		log.Stderr.Panic(err)
+	}
 	h.KubectlPath = kubectlPath
 
+	// fix structure in case nothing was defined
 	if h.Env == nil {
 		h.Env = make([]EnvVar, 0)
 	}
 
-	// publish the host facts to the viper
+	log.Debug.Print("Publish to viper")
 	viper.Set("host", h)
 
 	// once host facts are discovered, we may proceed discovering environment variables
@@ -113,12 +118,14 @@ func Exec(cmd *exec.Cmd) string {
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
-			log.Error.Print(string(exitErr.Stderr))
+			log.Stderr.Print(string(exitErr.Stderr))
 		}
-		log.Error.Panic(err)
+		log.Stderr.Panic(err)
 	}
+	s := string(out)
 
-	return strings.TrimSpace(string(out))
+	log.Debug.Printf("Output: %s", s)
+	return strings.TrimSpace(s)
 }
 
 // ExecBackend is similar to Exec, but the logic is slightly different.
@@ -126,21 +133,24 @@ func Exec(cmd *exec.Cmd) string {
 // as well as preserving it's exit code upon exiting from this tool.
 // This function will never return, it's an ultimate end of this tool and it will exit the program.
 func ExecBackend(cmd *exec.Cmd) {
-	log.Info.Printf("Executing: %s", cmd.String())
+	log.Info.Printf("Executing backend: %s", cmd.String())
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
+		log.Debug.Print("Backend execution failed")
+
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
 			log.Error.Print(err)
 			os.Exit(exitErr.ExitCode())
 		}
 
-		log.Error.Panic(err)
+		log.Stderr.Panic(err)
 	}
 
+	log.Debug.Print("Backend execution successfully finished")
 	os.Exit(0)
 }

@@ -36,15 +36,18 @@ type Volumes struct {
 
 // DiscoverVolumes analyze environment to determine what to mount
 func DiscoverVolumes() {
+	log.Debug.Print("Discover volumes")
+
 	volumes := Volumes{}
 
 	// read user defined volumes to mount
 	if v := viper.Get("volumes"); v != nil {
+		log.Debug.Print("Load user defined volumes settings")
 		// when read from viper for the first time (i.e. nothing Set it there yet as the struct) it will be a map[string]interface{}
 		// hence we need to convert it to the struct
 		err := mapstructure.Decode(v, &volumes)
 		if err != nil {
-			log.Error.Panic(err)
+			log.Stderr.Panic(err)
 		}
 	}
 
@@ -67,15 +70,16 @@ func DiscoverVolumes() {
 
 	// now we will determine current working directory inside
 	if strings.HasPrefix(h.Cwd, h.Home) {
+		log.Debug.Printf("Host cwd %s is under user home %s, calculating container cwd accordingly", h.Cwd, h.Home)
 		// basically, if current working directory on the host somewhere under the user home, we already have it mounted - we just need to calculate the path to it
 		containerRtHomePath, err := filepath.Rel(h.Home, h.Cwd)
 		if err != nil {
-			log.Error.Panic(err)
+			log.Stderr.Panic(err)
 		}
 		// just to get rid of . and ..
 		containerRtHomePath, err = filepath.Abs(containerRtHomePath)
 		if err != nil {
-			log.Error.Panic(err)
+			log.Stderr.Panic(err)
 		}
 		// convert path separator to what's in the image
 		// note that filepath.FromSlash and filepath.ToSlash won't work as they would rely on the host OS file separator
@@ -84,10 +88,13 @@ func DiscoverVolumes() {
 			containerRtHomePath = strings.ReplaceAll(containerRtHomePath, "/", "\\")
 		case "/":
 			containerRtHomePath = strings.ReplaceAll(containerRtHomePath, "\\", "/")
+		default:
+			log.Stderr.Fatalf("Unknown path separator: %s", i.PathSeparator)
 		}
 		// again, this is for the container so host path separator is irrelevant, hence path not filepath
 		volumes.ContainerCwd = path.Join(hostHomeMount, containerRtHomePath)
 	} else {
+		log.Debug.Printf("Host cwd %s seems to be outside user home %s, calculating and mounting container cwd accordingly", h.Cwd, h.Home)
 		// otherwise, we need to mount host home separately
 		// we start off with a host cwd base name, as some software cares about cwd name (I'm looking at you, Helm)
 		containerRtHomePath := filepath.Base(h.Cwd)
@@ -97,7 +104,7 @@ func DiscoverVolumes() {
 		volumes.HostMapping = append(volumes.HostMapping, Volume{Src: h.Cwd, Dest: volumes.ContainerCwd})
 	}
 
-	// publish what we've calculated to viper
+	log.Debug.Print("Publish to viper")
 	viper.Set("volumes", volumes)
 }
 
@@ -118,6 +125,8 @@ func resolveTilde(h, p string) string {
 // Only for mounting directories.
 // Automatically resolves ~ to the user home (both host and container).
 func (volumes *Volumes) AddHostMount(h host.Host, i image.Image, src, dest string) {
+	log.Debug.Printf("Checking potential volume %s:%s", src, dest)
+
 	src = resolveTilde(h.Home, src)
 	dest = resolveTilde(i.Home, dest)
 
@@ -125,15 +134,16 @@ func (volumes *Volumes) AddHostMount(h host.Host, i image.Image, src, dest strin
 	// do that only for src as filepath uses host file separator
 	s, err := filepath.Abs(src)
 	if err != nil {
-		log.Error.Panic(err)
+		log.Stderr.Panic(err)
 	}
 
 	exists, err := utils.OsFs.DirExists(s)
 	if err != nil {
-		log.Error.Panic(err)
+		log.Stderr.Panic(err)
 	}
 
 	if exists {
+		log.Debug.Printf("Adding a valid volume %s:%s", src, dest)
 		volumes.HostMapping = append(volumes.HostMapping, Volume{Src: src, Dest: dest})
 	}
 }
