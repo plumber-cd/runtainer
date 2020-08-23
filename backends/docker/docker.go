@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"fmt"
 	"os/exec"
 	"runtime"
 
@@ -54,5 +55,10 @@ func Run(dockerArgs, inDockerArgs []string) {
 	dockerExecArgs = append(dockerExecArgs, inDockerArgs...)
 
 	dockerExecCommand := exec.Command(h.DockerPath, dockerExecArgs...)
+	if viper.GetBool("dry-run") {
+		log.Debug.Print("--dry-run mode enabled")
+		fmt.Println(dockerExecCommand.String())
+		return
+	}
 	host.ExecBackend(dockerExecCommand)
 }

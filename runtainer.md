@@ -17,10 +17,11 @@ runtainer [runtainer flags] image [backend flags] [-- [in container args]]
   -c, --config string    global config file (default is $HOME/.runtainer.yaml)
       --dind             Disable passing DOCKER_HOST to the container, enable if image has it's own dind and you don't want it to use the host Docker
   -d, --dir string       Use different folder to make a CWD in the container (default is the host CWD)
+      --dry-run          Dru Run mode will not execute the container, only print to stdout what it would run otherwise. Note container will still launch as part of discovery phase.
   -h, --help             help for runtainer
   -l, --log              Enable logs
   -i, --stdin            Use --interactive for docker and --stdin for kubectl (default true)
-  -t, --tty              Use --tty for backend, disable if piping output into some other stdin (default true)
+  -t, --tty              Use --tty for backend, disable if piping something to stdin (default true)
   -v, --verbose          Verbose mode (also enables logs)
 ```
 
