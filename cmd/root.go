@@ -88,7 +88,7 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("tty", "t", true, "Use --tty for backend, disable if piping output into some other stdin")
+	rootCmd.PersistentFlags().BoolP("tty", "t", true, "Use --tty for backend, disable if piping something to stdin")
 	if err := viper.BindPFlag("tty", rootCmd.PersistentFlags().Lookup("tty")); err != nil {
 		llog.Panic(err)
 	}

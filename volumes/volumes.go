@@ -210,7 +210,6 @@ func DiscoverVolumes() {
 		if err != nil {
 			log.Stderr.Panic(err)
 		}
-		log.Info.Printf("1: %s", containerRtHomePath)
 		// convert path separator to what's in the image
 		// note that filepath.FromSlash and filepath.ToSlash won't work as they would rely on the host OS file separator
 		switch i.PathSeparator {
@@ -221,10 +220,8 @@ func DiscoverVolumes() {
 		default:
 			log.Stderr.Fatalf("Unknown path separator: %s", i.PathSeparator)
 		}
-		log.Info.Printf("3: %s", containerRtHomePath)
 		// again, this is for the container so host path separator is irrelevant, hence path not filepath
 		volumes.ContainerCwd = path.Join(hostHomeMount, containerRtHomePath)
-		log.Info.Printf("4: %s", volumes.ContainerCwd)
 	} else {
 		log.Debug.Printf("Host cwd %s seems to be outside user home %s, calculating and mounting container cwd accordingly", h.Cwd, h.Home)
 		// otherwise, we need to mount host home separately
