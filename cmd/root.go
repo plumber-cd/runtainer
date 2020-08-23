@@ -103,7 +103,7 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().Bool("dry-run", false, "Dru Run mode will not execute the container, only print to stdout what it would run otherwise. Note container will still launch as part of discovery phase.")
+	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to stdout what it would run otherwise. Note container will still launch as part of discovery phase.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)
 	}
