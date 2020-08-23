@@ -1,0 +1,67 @@
+on:
+  push:
+    tags:
+      - "v*"
+
+name: Create Release
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-16.04
+    strategy:
+      matrix:
+        os: [linux, darwin, windows]
+        arch: [amd64, 386]
+    steps:
+      - name: Set RELEASE_VERSION
+        run: echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+      - name: Setup Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: "1.14"
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Add Windows Exe File Extension
+        if: matrix.os == 'windows'
+        run: |
+          echo ::set-env name=FILE_EXTENSION::.exe
+      - name: Build Code
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: go build -ldflags="-X 'github.com/plumber-cd/runtainer/cmd.Version==${{ env.RELEASE_VERSION }}'" -o build/runtainer-${{ matrix.os }}-${{ matrix.arch }}${{ env.FILE_EXTENSION }}
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: runtainer
+          path: build/runtainer-${{ matrix.os }}-${{ matrix.arch }}${{ env.FILE_EXTENSION }}
+  release:
+    name: Draft Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Download Artifacts
+        uses: actions/download-artifact@v1
+        with:
+          name: runtainer
+      - name: Generate SHA256SUMS
+        run: |
+          cd runtainer && sha256sum * > SHA256SUMS
+      - name: List Artifacts
+        run: |
+          echo ::set-env name=ARTIFACTS::$(echo runtainer/*)
+      - name: Release
+        uses: docker://antonyurchenko/git-release:v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRAFT_RELEASE: "true"
+          PRE_RELEASE: "false"
+          CHANGELOG_FILE: "CHANGELOG.md"
+          ALLOW_EMPTY_CHANGELOG: "false"
+          ALLOW_TAG_PREFIX: "true"
+        with:
+          args: |
+            ${{ env.ARTIFACTS }}
