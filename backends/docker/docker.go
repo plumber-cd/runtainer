@@ -41,7 +41,7 @@ func Run(dockerArgs, inDockerArgs []string) {
 	}
 	for _, vol := range v.HostMapping {
 		log.Info.Printf("Adding volume: %s:%s", vol.Src, vol.Dest)
-		dockerExecArgs = append(dockerExecArgs, "--volume", vol.Src+":"+vol.Dest)
+		dockerExecArgs = append(dockerExecArgs, "--volume", vol.Src+":"+vol.Dest+":rw,z,delegated")
 	}
 	log.Info.Printf("Using cwd: %s", v.ContainerCwd)
 	dockerExecArgs = append(dockerExecArgs, "--workdir", v.ContainerCwd)
