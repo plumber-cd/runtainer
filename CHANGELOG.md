@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `--dry-run` mode to print out what it normally would run otherwise
+- [Discovery/AWS]: Add `AWS_SDK_LOAD_CONFIG`
 
 ## [0.0.1] - 2020-08-22
 
