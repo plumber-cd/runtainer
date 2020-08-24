@@ -16,6 +16,7 @@ func Discover() {
 
 	h.AddMirrorEnvVar("AWS_PROFILE")
 	h.AddMirrorEnvVar("AWS_DEFAULT_REGION")
+	h.AddMirrorEnvVar("AWS_SDK_LOAD_CONFIG")
 
 	v.AddHostMount(h, i, "~/.aws",
 		&volumes.DiscoverEnvVar{Config: volumes.DiscoveryConfig{UseParent: true}, EnvVar: "AWS_SHARED_CREDENTIALS_FILE"},
