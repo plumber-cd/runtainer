@@ -30,6 +30,6 @@ func Discover() {
 	)
 
 	log.Debug.Print("Publish to viper")
-	viper.Set("host", h)
+	viper.Set("env", e)
 	viper.Set("volumes", v)
 }

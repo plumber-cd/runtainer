@@ -1,10 +1,9 @@
 package helm
 
 import (
-	"image"
-
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/host"
+	"github.com/plumber-cd/runtainer/image"
 	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/volumes"
 	"github.com/spf13/viper"
@@ -23,12 +22,12 @@ func Discover() {
 	)
 
 	v.AddHostMount(h, i, "~/.cache/helm",
-		&volumes.DiscoverCallback{Callback: func(h host.Host, i image.Image, dest string) (bool, string) {
+		&volumes.DiscoverCallback{Callback: func(_ host.Host, _ image.Image, _ string) (bool, string) {
 			return true, helmpath.CachePath("")
 		}},
 	)
 	v.AddHostMount(h, i, "~/.config/helm",
-		&volumes.DiscoverCallback{Callback: func(h host.Host, i image.Image, dest string) (bool, string) {
+		&volumes.DiscoverCallback{Callback: func(_ host.Host, _ image.Image, _ string) (bool, string) {
 			return true, helmpath.ConfigPath("")
 		}},
 	)
