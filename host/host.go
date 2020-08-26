@@ -13,13 +13,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// EnvVar represents an environment variable to be defined on the container
-// If the value is nil, variable will be proxied with no explicit value passing.
-type EnvVar struct {
-	Name  string
-	Value interface{}
-}
-
 // Host facts about the host
 type Host struct {
 	Name        string
@@ -30,7 +23,6 @@ type Host struct {
 	Cwd         string
 	DockerPath  string
 	KubectlPath string
-	Env         []EnvVar
 }
 
 // DiscoverHost discover information about the host
@@ -98,16 +90,8 @@ func DiscoverHost() {
 	}
 	h.KubectlPath = kubectlPath
 
-	// fix structure in case nothing was defined
-	if h.Env == nil {
-		h.Env = make([]EnvVar, 0)
-	}
-
 	log.Debug.Print("Publish to viper")
 	viper.Set("host", h)
-
-	// once host facts are discovered, we may proceed discovering environment variables
-	discoverEnv()
 }
 
 // Exec exec command on the host and return the output

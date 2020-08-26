@@ -15,7 +15,7 @@ import (
 func Run(dockerArgs, inDockerArgs []string) {
 	log.Debug.Print("Starting docker backend")
 
-	h, i, v := discover.GetFromViper()
+	h, e, i, v := discover.GetFromViper()
 
 	dockerExecArgs := make([]string, 0)
 	dockerExecArgs = append(dockerExecArgs, "run")
@@ -32,13 +32,13 @@ func Run(dockerArgs, inDockerArgs []string) {
 		log.Debug.Print("--tty mode enabled")
 		dockerExecArgs = append(dockerExecArgs, "--tty")
 	}
-	for _, env := range h.Env {
-		val := env.Name
-		if env.Value != nil {
-			val = val + "=" + env.Value.(string)
+	for key, val := range e {
+		a := key
+		if val != nil {
+			a = a + "=" + val.(string)
 		}
-		log.Info.Printf("Adding env variable: %s", val)
-		dockerExecArgs = append(dockerExecArgs, "--env", val)
+		log.Info.Printf("Adding env variable: %s", a)
+		dockerExecArgs = append(dockerExecArgs, "--env", a)
 	}
 	for _, vol := range v.HostMapping {
 		log.Info.Printf("Adding volume: %s:%s", vol.Src, vol.Dest)

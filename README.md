@@ -145,13 +145,11 @@ Config files and env variables apart from being an alternative source for CLI ar
 
 ```yaml
 log: true
-host:
-  env:
-    # Var FOO have an explicit hardcoded value here
-    - name: FOO
-      value: Bar
-    # Var BAR does not have a value, so it will be mirrored from the host at runtime
-    - name: BAR
+env:
+  # Var FOO have an explicit hardcoded value here
+  FOO: foo
+  # Var BAR does not have a value, so it will be mirrored from the host at runtime
+  BAR: null
 volumes:
   hostMapping:
     - src: /home/foo/bar
