@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `--dry-run` mode to print out what it normally would run otherwise
-- [Discovery/AWS]: Add `AWS_SDK_LOAD_CONFIG`
+- Implemented env variables discovery mechanism similar to what's for volumes
+- `env` was moved out of `host` in config files - now it's a root level map
+- [Discovery/AWS]: Add `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_ROLE_SESSION_NAME`, `AWS_STS_REGIONAL_ENDPOINTS` and `AWS_SDK_LOAD_CONFIG`
 
 ## [0.0.1] - 2020-08-22
 

@@ -6,6 +6,7 @@ import (
 	"github.com/plumber-cd/runtainer/discover/java"
 	"github.com/plumber-cd/runtainer/discover/kube"
 	"github.com/plumber-cd/runtainer/discover/system"
+	"github.com/plumber-cd/runtainer/env"
 	"github.com/plumber-cd/runtainer/host"
 	"github.com/plumber-cd/runtainer/image"
 	"github.com/plumber-cd/runtainer/log"
@@ -16,6 +17,7 @@ func discover(imageName string) {
 	log.Debug.Print("Start discovery routine")
 
 	host.DiscoverHost()
+	env.DiscoverEnv()
 	image.DiscoverImage(imageName)
 	volumes.DiscoverVolumes()
 
