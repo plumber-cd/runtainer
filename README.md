@@ -75,7 +75,8 @@ Of course `--entrypoint` is a regular `--docker` arg.
 This one is especially fun as basically this Jenkins Master in the container will have aws/k8s/etc access from your laptop. How cool is that huh?
 
 ```bash
-runtainer jenkins/jenkins:2.235.5-lts -v $(cd && pwd)/.jenkins:/var/jenkins_home -p 8080:8080
+JENKINS_VERSION=2.289.1-lts
+runtainer jenkins/jenkins:${JENKINS_VERSION} -v $(cd && pwd)/.jenkins:/var/jenkins_home -p 8080:8080
 ```
 
 `-v` and `-p` are `docker` args as well.
