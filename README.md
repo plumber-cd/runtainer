@@ -81,6 +81,12 @@ runtainer jenkins/jenkins:${JENKINS_VERSION} -v $(cd && pwd)/.jenkins:/var/jenki
 
 `-v` and `-p` are `docker` args as well.
 
+Or maybe you want to test a Jenkins plugin?
+
+```bash
+runtainer maven:3.8.1-jdk-8 -p 8080:8080 -- mvn -Dhost=0.0.0.0 clean hpi:run
+```
+
 #### Extra ENV variables
 
 ```bash
