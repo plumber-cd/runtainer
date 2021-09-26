@@ -2,12 +2,12 @@ package host
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"os"
-	"os/user"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,11 +29,14 @@ import (
 	"github.com/plumber-cd/runtainer/utils"
 )
 
+const serviceAccountNamespace = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+
 type PodRunMode string
 
 const (
 	PodRunModeModeAttach PodRunMode = "PodRunModeModeAttach"
 	PodRunModeModeExec   PodRunMode = "PodRunModeModeExec"
+	PodRunModeModeLogs   PodRunMode = "PodRunModeModeLogs"
 )
 
 type PodOptions struct {
@@ -50,46 +53,62 @@ type PodOptions struct {
 	Tty       bool
 }
 
-func GetKubeClient() (*rest.Config, *kubernetes.Clientset, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var config *rest.Config
+func GetKubeClient() (
+	config *rest.Config,
+	clientset *kubernetes.Clientset,
+	namespace string,
+	err error,
+) {
+	namespace = v1.NamespaceDefault
 
 	if k8sPort := os.Getenv("KUBERNETES_PORT"); k8sPort != "" {
 		log.Debug.Printf("Using in-cluster authentication")
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			return nil, nil, err
+			return
+		}
+
+		// It doesn't seem K8s sdk expose any function for detecting current namespace.
+		// Best shot I found is here https://github.com/kubernetes/client-go/blob/v0.19.2/tools/clientcmd/client_config.go#L572
+		// But `type inClusterClientConfig` is not exported and seems accordingly to the comment only used for internal testing.
+		// So best I guess is to mimic same logic here.
+		if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
+			log.Debug.Printf("Detected POD_NAMESPACE=%s", ns)
+			namespace = ns
+		} else if data, err := ioutil.ReadFile(serviceAccountNamespace); err == nil {
+			log.Debug.Printf("Detected %s", serviceAccountNamespace)
+			if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
+				log.Debug.Printf("Detected %s=%s", serviceAccountNamespace, ns)
+				namespace = ns
+			}
+		} else {
+			log.Debug.Printf("Using NamespaceDefault=%s", namespace)
 		}
 	} else {
 		log.Debug.Printf("Using local kubeconfig")
-		var kubeconfig string
 
-		if cfg := os.Getenv("KUBECONFIG"); cfg != "" {
-			kubeconfig = cfg
-		} else {
-			home := usr.HomeDir
-			if home == "" {
-				return nil, nil, errors.New("home directory unknown")
-			}
-			kubeconfig = fmt.Sprintf("%s/.kube/config", home)
-		}
-
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			clientcmd.NewDefaultClientConfigLoadingRules(),
+			&clientcmd.ConfigOverrides{},
+		)
+		config, err = clientConfig.ClientConfig()
 		if err != nil {
-			return nil, nil, err
+			return
 		}
+
+		namespace, _, err = clientConfig.Namespace()
+		if err != nil {
+			return
+		}
+		log.Debug.Printf("Context namespace detected: %s", namespace)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, nil, err
+		return
 	}
 
-	return config, clientset, nil
+	return
 }
 
 func ExecPod(options *PodOptions) error {
@@ -108,7 +127,37 @@ func ExecPod(options *PodOptions) error {
 	}()
 
 	stopEventsWatch := watchPodEvents(options.Clientset, pod)
-	waitForPod(options.Clientset, pod)
+
+	if options.Mode == PodRunModeModeLogs {
+		waitForPod(options.Clientset, pod, v1.PodRunning, v1.PodSucceeded)
+		stopEventsWatch.CloseOnce()
+
+		podOptions := &v1.PodLogOptions{
+			Container: options.Container,
+			Follow:    true,
+		}
+
+		req := options.
+			Clientset.
+			CoreV1().
+			Pods(pod.Namespace).
+			GetLogs(pod.Name, podOptions)
+
+		podLogs, err := req.Stream(context.TODO())
+		if err != nil {
+			return err
+		}
+		go func() {
+			if _, err := io.Copy(os.Stdout, podLogs); err != nil {
+				log.Normal.Panic(err)
+			}
+		}()
+
+		waitForPod(options.Clientset, pod, v1.PodSucceeded)
+		return nil
+	}
+
+	waitForPod(options.Clientset, pod, v1.PodRunning)
 	stopEventsWatch.CloseOnce()
 
 	var podOptions runtime.Object
@@ -151,7 +200,7 @@ func ExecPod(options *PodOptions) error {
 	return stream(options, req.URL())
 }
 
-func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod) {
+func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod, phases ...v1.PodPhase) {
 	stop := utils.NewStopChan()
 
 	watchlist := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", pod.Namespace, fields.Everything())
@@ -164,13 +213,15 @@ func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod) {
 				return
 			}
 
-			// if the pod is running, stop watching and continue with the cmd execution
-			if newPod.Status.Phase == v1.PodRunning {
-				stop.CloseOnce()
-				return
+			// if the pod is in expected status - stop watching
+			for _, phase := range phases {
+				if newPod.Status.Phase == phase {
+					stop.CloseOnce()
+					return
+				}
 			}
 
-			if newPod.Status.Phase != v1.PodPending {
+			if newPod.Status.Phase == v1.PodFailed || newPod.Status.Phase == v1.PodUnknown {
 				log.Normal.Printf("Unexpected pod status %s", newPod.Status.Phase)
 				stop.CloseOnce()
 				return

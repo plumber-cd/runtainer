@@ -82,8 +82,18 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("stdin", "i", true, "Redirect host StdIn to the container")
+	rootCmd.PersistentFlags().BoolP("stdin", "s", true, "Redirect host StdIn to the container")
 	if err := viper.BindPFlag("stdin", rootCmd.PersistentFlags().Lookup("stdin")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().BoolP("interactive", "i", true, `Disable to not to attach to the container.
+	By default we wait till pod becomes Running and then - attaching to it.
+	If container expected to run a script in non-interactive mode and exit,
+	- the tool might try to attach to the container that is already finished and fail.
+	Disable interactive mode in this case - then it will not attempt to attach
+	and instead will just stream logs until containe becomes either Succeeded or Failed.`)
+	if err := viper.BindPFlag("interactive", rootCmd.PersistentFlags().Lookup("interactive")); err != nil {
 		llog.Panic(err)
 	}
 

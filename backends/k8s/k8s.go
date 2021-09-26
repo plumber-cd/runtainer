@@ -23,13 +23,11 @@ func Run(containerCmd, containerArgs []string) {
 
 	h, e, i, v := discover.GetFromViper()
 
-	kubeconfig, clientset, err := host.GetKubeClient()
+	kubeconfig, clientset, namespace, err := host.GetKubeClient()
 	if err != nil {
 		log.Normal.Panic(err)
 	}
 
-	// TODO: should come from viper
-	namespace := "default"
 	podName := fmt.Sprintf("runtainer-%s", utils.RandomHex(4))
 	containerName := "runtainer"
 
@@ -59,6 +57,7 @@ func Run(containerCmd, containerArgs []string) {
 				SupplementalGroups: []int64{h.GID},
 				FSGroup:            &h.GID,
 			},
+			RestartPolicy: v1.RestartPolicyNever,
 		},
 	}
 
@@ -128,6 +127,12 @@ func Run(containerCmd, containerArgs []string) {
 		Mode:      host.PodRunModeModeAttach,
 		Stdout:    os.Stdout,
 		Stderr:    os.Stderr,
+	}
+
+	if viper.GetBool("interactive") {
+		podOptions.Mode = host.PodRunModeModeAttach
+	} else {
+		podOptions.Mode = host.PodRunModeModeLogs
 	}
 
 	if viper.GetBool("stdin") {

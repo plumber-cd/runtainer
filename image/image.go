@@ -29,13 +29,11 @@ type Image struct {
 func DiscoverImage(image string) {
 	log.Debug.Print("Discover image")
 
-	kubeconfig, clientset, err := host.GetKubeClient()
+	kubeconfig, clientset, namespace, err := host.GetKubeClient()
 	if err != nil {
 		log.Normal.Panic(err)
 	}
 
-	// TODO: should come from viper
-	namespace := "default"
 	podName := fmt.Sprintf("runtainer-%s", utils.RandomHex(4))
 	containerName := "runtainer"
 
