@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -15,14 +16,12 @@ import (
 
 // Host facts about the host
 type Host struct {
-	Name        string
-	User        string
-	UID         string
-	GID         string
-	Home        string
-	Cwd         string
-	DockerPath  string
-	KubectlPath string
+	Name string
+	User string
+	UID  int64
+	GID  int64
+	Home string
+	Cwd  string
 }
 
 // DiscoverHost discover information about the host
@@ -51,8 +50,16 @@ func DiscoverHost() {
 		log.Stderr.Panic(err)
 	}
 	h.User = currentUser.Username
-	h.UID = currentUser.Uid
-	h.GID = currentUser.Gid
+	if id, err := strconv.ParseInt(currentUser.Uid, 10, 64); err != nil {
+		log.Stderr.Panic(err)
+	} else {
+		h.UID = id
+	}
+	if id, err := strconv.ParseInt(currentUser.Gid, 10, 64); err != nil {
+		log.Stderr.Panic(err)
+	} else {
+		h.GID = id
+	}
 
 	home, err := homedir.Dir()
 	if err != nil {
@@ -78,18 +85,6 @@ func DiscoverHost() {
 		h.Cwd = cwd
 	}
 
-	dockerPath, err := exec.LookPath("docker")
-	if err != nil {
-		log.Stderr.Panic(err)
-	}
-	h.DockerPath = dockerPath
-
-	kubectlPath, err := exec.LookPath("kubectl")
-	if err != nil && viper.GetBool("kube") {
-		log.Stderr.Panic(err)
-	}
-	h.KubectlPath = kubectlPath
-
 	log.Debug.Print("Publish to viper")
 	viper.Set("host", h)
 }
@@ -110,31 +105,4 @@ func Exec(cmd *exec.Cmd) string {
 
 	log.Debug.Printf("Output: %s", s)
 	return strings.TrimSpace(s)
-}
-
-// ExecBackend is similar to Exec, but the logic is slightly different.
-// It's designed to run the final backend engine via it's CLI, so it redirects stdin/stdout/stderr and it doesn't return anything,
-// as well as preserving it's exit code upon exiting from this tool.
-// This function will never return, it's an ultimate end of this tool and it will exit the program.
-func ExecBackend(cmd *exec.Cmd) {
-	log.Info.Printf("Executing backend: %s", cmd.String())
-
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		log.Debug.Print("Backend execution failed")
-
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
-			log.Error.Print(err)
-			os.Exit(exitErr.ExitCode())
-		}
-
-		log.Stderr.Panic(err)
-	}
-
-	log.Debug.Print("Backend execution successfully finished")
-	os.Exit(0)
 }

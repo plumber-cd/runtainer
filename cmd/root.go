@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	homedir "github.com/mitchellh/go-homedir"
-	"github.com/plumber-cd/runtainer/backends/docker"
+	"github.com/plumber-cd/runtainer/backends/k8s"
 	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/utils"
 	"github.com/spf13/cobra"
@@ -35,7 +35,7 @@ var (
 			// rest of the args split by -- delimiter
 			// See POSIX chapter 12.02, Guideline 10: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02
 			// On the left, args considered to be passed to the backend (docker/kubectl/etc), on the right args considered to be passed to the container
-			backendArgs, containerArgs := splitArgs(args[1:])
+			containerCmd, containerArgs := splitArgs(args[1:])
 
 			// run discovery routines that will publish all the facts to viper for backend engine to interpret
 			discover(imageName)
@@ -47,13 +47,7 @@ var (
 			}
 			log.Debug.Printf("Settings: %s", string(allSettings))
 
-			backend := viper.GetString("backend")
-			switch backend {
-			case "docker":
-				docker.Run(backendArgs, containerArgs)
-			default:
-				log.Stderr.Fatalf("Unknown backend: %s", backend)
-			}
+			k8s.Run(containerCmd, containerArgs)
 		},
 	}
 )
@@ -78,17 +72,12 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().StringP("backend", "b", "docker", "Backend to run container; only docker supported at the moment")
-	if err := viper.BindPFlag("backend", rootCmd.PersistentFlags().Lookup("backend")); err != nil {
-		llog.Panic(err)
-	}
-
-	rootCmd.PersistentFlags().BoolP("stdin", "i", true, "Use --interactive for docker and --stdin for kubectl")
+	rootCmd.PersistentFlags().BoolP("stdin", "i", true, "Redirect host StdIn to the container")
 	if err := viper.BindPFlag("stdin", rootCmd.PersistentFlags().Lookup("stdin")); err != nil {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("tty", "t", true, "Use --tty for backend, disable if piping something to stdin")
+	rootCmd.PersistentFlags().BoolP("tty", "t", true, "Enable TTY, disable if piping something to stdin")
 	if err := viper.BindPFlag("tty", rootCmd.PersistentFlags().Lookup("tty")); err != nil {
 		llog.Panic(err)
 	}
@@ -98,12 +87,7 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().Bool("dind", false, "Disable passing DOCKER_HOST to the container, enable if image has it's own dind and you don't want it to use the host Docker")
-	if err := viper.BindPFlag("dind", rootCmd.PersistentFlags().Lookup("dind")); err != nil {
-		llog.Panic(err)
-	}
-
-	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to stdout what it would run otherwise. Note container will still launch as part of discovery phase.")
+	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to stdout what it would run otherwise.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)
 	}

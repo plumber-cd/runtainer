@@ -2,7 +2,6 @@ package env
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 
@@ -135,27 +134,6 @@ func DiscoverEnv() {
 	e.AddEnv(h, &DiscoverValue{Name: "RT_HOST_USER", Value: h.User})
 	e.AddEnv(h, &DiscoverValue{Name: "RT_HOST_HOME", Value: h.Home})
 	e.AddEnv(h, &DiscoverValue{Name: "RT_HOST_CWD", Value: h.Cwd})
-
-	// Unless explicitly disabled, we need to account for possible docker in docker calls.
-	// We will look into DOCKER_HOST and if it pointing to the local network interface,
-	// we need to translate it to host.docker.internal so it's accessible from within the container.
-	if !viper.GetBool("dind") {
-		log.Debug.Print("Checking DOCKER_HOST for dind")
-		if dockerHost, dockerHostExists := os.LookupEnv("DOCKER_HOST"); dockerHostExists {
-			log.Debug.Printf("DOCKER_HOST env var detected: %s", dockerHost)
-			u, err := url.Parse(dockerHost)
-			if err != nil {
-				log.Stderr.Panic(err)
-			}
-			if u.Hostname() == "localhost" || strings.HasPrefix(u.Hostname(), "127.") {
-				internal := "host.docker.internal"
-				log.Debug.Printf("DOCKER_HOST env var was pointing to localhost (%s), patch it to %s", u.Hostname(), internal)
-				u.Host = internal + ":" + u.Port()
-			}
-			log.Debug.Printf("Adding DOCKER_HOST=%s", u.String())
-			e.AddEnv(h, &DiscoverValue{Name: "DOCKER_HOST", Value: u.String()})
-		}
-	}
 
 	// now we mirror any env vars that starts with RT_VAR_* and RT_EVAR_* to account for any possible user-defined vars
 	e.AddEnv(h, &DiscoverPrefix{Prefix: "RT_VAR_"})
