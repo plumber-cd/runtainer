@@ -157,10 +157,11 @@ func ExecPod(options *PodOptions) error {
 		return nil
 	}
 
-	waitForPod(options.Clientset, pod, v1.PodRunning)
+	waitForPod(options.Clientset, pod, v1.PodRunning, v1.PodSucceeded)
 	stopEventsWatch.CloseOnce()
 
 	var podOptions runtime.Object
+	method := "POST"
 	req := options.Clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(pod.Name).
@@ -197,7 +198,7 @@ func ExecPod(options *PodOptions) error {
 		scheme.ParameterCodec,
 	)
 
-	return stream(options, req.URL())
+	return stream(options, req.URL(), method)
 }
 
 func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod, phases ...v1.PodPhase) {
@@ -287,7 +288,7 @@ func startStream(
 	return exec.Stream(streamOptions)
 }
 
-func stream(options *PodOptions, url *url.URL) error {
+func stream(options *PodOptions, url *url.URL, method string) error {
 	streamOptions := remotecommand.StreamOptions{
 		Stdin:  options.Stdin,
 		Stdout: options.Stdout,
@@ -320,5 +321,5 @@ func stream(options *PodOptions, url *url.URL) error {
 		log.Normal.Println("If you don't see a command prompt, try pressing enter.")
 	}
 
-	return startStream("POST", url, options.Config, streamOptions)
+	return startStream(method, url, options.Config, streamOptions)
 }

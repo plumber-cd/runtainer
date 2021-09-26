@@ -18,6 +18,13 @@ runtainer [runtainer flags] image [container cmd] [-- [container args]]
   -d, --dir string      Use different folder to make a CWD in the container (default is the host CWD)
       --dry-run         Dry Run mode will not execute the container, only print to StdOut a pod spec it would have run.
   -h, --help            help for runtainer
+  -i, --interactive     Disable to not to attach to the container.
+                        	By default we wait till pod becomes Running and then - attaching to it.
+                        	If container expected to run a script in non-interactive mode and exit,
+                        	- the tool might try to attach to the container that is already finished and fail.
+                        	Disable interactive mode in this case - then it will not attempt to attach
+                        	and instead will just stream logs until containe becomes either Succeeded or Failed.
+                        	This automatically disables --stdin and --tty. (default true)
       --log             Enables info logs to file
   -q, --quiet           Enable quiet mode.
                         	By default runtainer never prints to StdOut,
@@ -25,7 +32,7 @@ runtainer [runtainer flags] image [container cmd] [-- [container args]]
                         	But it does print messages to StdErr.
                         	Enabling quiet mode will redirect all messages to the info logger.
                         	If --log mode was not enabled - these messages will be discarded.
-  -i, --stdin           Redirect host StdIn to the container (default true)
+  -s, --stdin           Redirect host StdIn to the container (default true)
   -t, --tty             Enable TTY, disable if piping something to stdin (default true)
 ```
 
