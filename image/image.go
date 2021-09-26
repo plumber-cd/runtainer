@@ -92,7 +92,6 @@ func DiscoverImage(image string) {
 	}
 
 	out := strings.TrimSpace(stdout.String())
-	log.Stderr.Println(out)
 	outSplit := strings.Split(out, ":")
 	if len(outSplit) != 2 {
 		log.Stderr.Println(stderr.String())
