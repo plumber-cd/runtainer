@@ -102,7 +102,7 @@ func ExecPod(options *PodOptions) error {
 	defer func() {
 		if err := podsClient.Delete(context.TODO(), pod.ObjectMeta.Name, metav1.DeleteOptions{}); err != nil {
 			if err != nil {
-				log.Stderr.Printf("Failed cleaning up pod %s: %s", pod.ObjectMeta.Name, err)
+				log.Normal.Printf("Failed cleaning up pod %s: %s", pod.ObjectMeta.Name, err)
 			}
 		}
 	}()
@@ -171,7 +171,7 @@ func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod) {
 			}
 
 			if newPod.Status.Phase != v1.PodPending {
-				log.Stderr.Printf("Unexpected pod status %s", newPod.Status.Phase)
+				log.Normal.Printf("Unexpected pod status %s", newPod.Status.Phase)
 				stop.CloseOnce()
 				return
 			}
@@ -208,17 +208,9 @@ func watchPodEvents(clientset *kubernetes.Clientset, pod *v1.Pod) *utils.StopCha
 					return
 				}
 
-				reportedBy := e.ReportingController
-				if e.Source.Component != "" {
-					if reportedBy != "" {
-						reportedBy = reportedBy + ":"
-					}
-					reportedBy = reportedBy + e.Source.Component
-				}
-				log.Stderr.Printf(
-					"[%s] %s[%s]: %s",
+				log.Normal.Printf(
+					"k8s event [%s] [%s]: %s",
 					e.Type,
-					reportedBy,
 					e.Reason,
 					e.Message,
 				)
@@ -257,7 +249,7 @@ func stream(options *PodOptions, url *url.URL) error {
 		case *streams.In:
 			in := options.Stdin.(*streams.In)
 			if err := in.SetRawTerminal(); err != nil {
-				log.Stderr.Panic(err)
+				log.Normal.Panic(err)
 			}
 			defer in.RestoreTerminal()
 		}
@@ -274,7 +266,7 @@ func stream(options *PodOptions, url *url.URL) error {
 		t := s.SetupTTY()
 		sizeQueue := t.MonitorSize(t.GetSize())
 		streamOptions.TerminalSizeQueue = sizeQueue
-		log.Stderr.Println("If you don't see a command prompt, try pressing enter.")
+		log.Normal.Println("If you don't see a command prompt, try pressing enter.")
 	}
 
 	return startStream("POST", url, options.Config, streamOptions)

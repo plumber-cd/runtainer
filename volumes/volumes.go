@@ -181,7 +181,7 @@ func DiscoverVolumes() {
 		// hence we need to convert it to the struct
 		err := mapstructure.Decode(v, &volumes)
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 	}
 
@@ -208,7 +208,7 @@ func DiscoverVolumes() {
 		// basically, if current working directory on the host somewhere under the user home, we already have it mounted - we just need to calculate the path to it
 		containerRtHomePath, err := filepath.Rel(h.Home, h.Cwd)
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 		// convert path separator to what's in the image
 		// note that filepath.FromSlash and filepath.ToSlash won't work as they would rely on the host OS file separator
@@ -218,7 +218,7 @@ func DiscoverVolumes() {
 		case "/":
 			containerRtHomePath = strings.ReplaceAll(containerRtHomePath, "\\", "/")
 		default:
-			log.Stderr.Fatalf("Unknown path separator: %s", i.PathSeparator)
+			log.Normal.Fatalf("Unknown path separator: %s", i.PathSeparator)
 		}
 		// again, this is for the container so host path separator is irrelevant, hence path not filepath
 		volumes.ContainerCwd = path.Join(hostHomeMount, containerRtHomePath)

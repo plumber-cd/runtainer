@@ -19,12 +19,12 @@ var docsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cwd, err := os.Getwd()
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 
 		err = doc.GenMarkdownTree(rootCmd, cwd)
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 	},
 }

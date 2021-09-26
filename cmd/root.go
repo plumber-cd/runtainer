@@ -43,7 +43,7 @@ var (
 			// just for debugging, dump full viper data before passing it to the backends
 			allSettings, err := json.MarshalIndent(viper.AllSettings(), "", "  ")
 			if err != nil {
-				log.Stderr.Panic(err)
+				log.Normal.Panic(err)
 			}
 			log.Debug.Printf("Settings: %s", string(allSettings))
 
@@ -62,13 +62,23 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "global config file (default is $HOME/.runtainer.yaml)")
 
-	rootCmd.PersistentFlags().BoolP("log", "l", false, "Enable logs")
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, `Enable quiet mode.
+	By default runtainer never prints to StdOut,
+	reserving that channel exclusively to the container.
+	But it does print messages to StdErr.
+	Enabling quiet mode will redirect all messages to the info logger.
+	If --log mode was not enabled - these messages will be discarded.`)
+	if err := viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().Bool("log", false, "Enables info logs to file")
 	if err := viper.BindPFlag("log", rootCmd.PersistentFlags().Lookup("log")); err != nil {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose mode (also enables logs)")
-	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+	rootCmd.PersistentFlags().Bool("debug", false, "Debug mode (enables info and debug logs to file)")
+	if err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug")); err != nil {
 		llog.Panic(err)
 	}
 
@@ -103,10 +113,10 @@ func initConfig() {
 
 		exists, err := utils.FileExists(cfgFile)
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 		if !exists {
-			log.Stderr.Fatalf("Global config file not found: %s", cfgFile)
+			log.Normal.Fatalf("Global config file not found: %s", cfgFile)
 		}
 
 		// Use config file from the flag.
@@ -117,7 +127,7 @@ func initConfig() {
 		// Find home directory.
 		home, err := homedir.Dir()
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 
 		// Search config in home directory with name ".runtainer" (without extension).
@@ -137,7 +147,7 @@ func initConfig() {
 		case viper.ConfigFileNotFoundError:
 			log.Debug.Printf("Global %s, skipping...", err)
 		default:
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 	} else {
 		log.Debug.Print("Using global config file:", viper.ConfigFileUsed())
@@ -146,7 +156,7 @@ func initConfig() {
 	// try to read (if exists) local config file in the cwd
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Stderr.Panic(err)
+		log.Error.Panic(err)
 	}
 	readLocalConfig(cwd)
 
@@ -176,12 +186,12 @@ func readLocalConfig(d string) {
 		case viper.ConfigFileNotFoundError:
 			log.Debug.Printf("Local %s, skipping...", err)
 		default:
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 	} else {
 		log.Debug.Print("Using local config file:", v.ConfigFileUsed())
 		if err := viper.MergeConfigMap(v.AllSettings()); err != nil {
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 	}
 }

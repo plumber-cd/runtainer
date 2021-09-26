@@ -24,7 +24,7 @@ func Run(containerCmd, containerArgs []string) {
 
 	kubeconfig, clientset, err := host.GetKubeClient()
 	if err != nil {
-		log.Stderr.Panic(err)
+		log.Normal.Panic(err)
 	}
 
 	// TODO: should come from viper
@@ -110,7 +110,7 @@ func Run(containerCmd, containerArgs []string) {
 			scheme.Scheme)
 		err = s.Encode(&podSpec, os.Stderr)
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 		return
 	}
@@ -137,6 +137,6 @@ func Run(containerCmd, containerArgs []string) {
 	}
 
 	if err := host.ExecPod(&podOptions); err != nil {
-		log.Stderr.Panic(err)
+		log.Normal.Panic(err)
 	}
 }

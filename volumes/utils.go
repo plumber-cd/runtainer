@@ -33,12 +33,12 @@ func checkLocalDir(h host.Host, dc DiscoveryConfig, path string) (bool, string) 
 	// do that only for src as filepath uses host file separator
 	p, err := filepath.Abs(path)
 	if err != nil {
-		log.Stderr.Panic(err)
+		log.Normal.Panic(err)
 	}
 
 	exists, err := utils.OsFs.DirExists(p)
 	if err != nil {
-		log.Stderr.Panic(err)
+		log.Normal.Panic(err)
 	}
 	if !exists {
 		log.Debug.Printf("Volume source %s didn't existed on the host, skipping...", p)

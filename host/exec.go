@@ -15,9 +15,9 @@ func Exec(cmd *exec.Cmd) string {
 	if err != nil {
 		exitErr, ok := err.(*exec.ExitError)
 		if ok {
-			log.Stderr.Print(string(exitErr.Stderr))
+			log.Normal.Print(string(exitErr.Stderr))
 		}
-		log.Stderr.Panic(err)
+		log.Normal.Panic(err)
 	}
 	s := string(out)
 

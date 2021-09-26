@@ -32,7 +32,7 @@ func DiscoverImage(image string) {
 
 	kubeconfig, clientset, err := host.GetKubeClient()
 	if err != nil {
-		log.Stderr.Panic(err)
+		log.Normal.Panic(err)
 	}
 
 	// TODO: should come from viper
@@ -82,20 +82,20 @@ func DiscoverImage(image string) {
 			scheme.Scheme)
 		err = s.Encode(&podSpec, os.Stderr)
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 	}
 
 	if err := host.ExecPod(&podOptions); err != nil {
-		log.Stderr.Println(stderr.String())
-		log.Stderr.Panic(err)
+		log.Normal.Println(stderr.String())
+		log.Normal.Panic(err)
 	}
 
 	out := strings.TrimSpace(stdout.String())
 	outSplit := strings.Split(out, ":")
 	if len(outSplit) != 2 {
-		log.Stderr.Println(stderr.String())
-		log.Stderr.Panic(fmt.Errorf("Unexpected output: %s", out))
+		log.Normal.Println(stderr.String())
+		log.Normal.Panic(fmt.Errorf("Unexpected output: %s", out))
 	}
 	username := outSplit[0]
 	pwd := outSplit[1]
