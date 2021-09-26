@@ -32,11 +32,14 @@ func Run(containerCmd, containerArgs []string) {
 	podName := fmt.Sprintf("runtainer-%s", utils.RandomHex(4))
 	containerName := "runtainer"
 
+	log.Info.Printf("Using cwd: %s", v.ContainerCwd)
+
 	containerSpec := v1.Container{
 		Name:            containerName,
 		Image:           i.Name,
 		Command:         containerCmd,
 		Args:            containerArgs,
+		WorkingDir:      v.ContainerCwd,
 		ImagePullPolicy: v1.PullPolicy(v1.PullIfNotPresent),
 		Env:             []v1.EnvVar{},
 		VolumeMounts:    []v1.VolumeMount{},
@@ -125,22 +128,13 @@ func Run(containerCmd, containerArgs []string) {
 
 	if viper.GetBool("stdin") {
 		log.Debug.Print("--stdin mode enabled")
-
-		in := streams.NewIn(os.Stdin)
-		if err := in.SetRawTerminal(); err != nil {
-			log.Stderr.Panic(err)
-		}
-		defer in.RestoreTerminal()
-
-		podOptions.Stdin = in
+		podOptions.Stdin = streams.NewIn(os.Stdin)
 	}
 
 	if viper.GetBool("tty") {
 		log.Debug.Print("--tty mode enabled")
 		podOptions.Tty = true
 	}
-
-	log.Info.Printf("Using cwd: %s", v.ContainerCwd)
 
 	if err := host.ExecPod(&podOptions); err != nil {
 		log.Stderr.Panic(err)

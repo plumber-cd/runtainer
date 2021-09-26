@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"os"
 	"os/user"
+	"sync"
 	"time"
 
+	"github.com/docker/cli/cli/streams"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -105,7 +107,9 @@ func ExecPod(options *PodOptions) error {
 		}
 	}()
 
+	stopEventsWatch := watchPodEvents(options.Clientset, pod)
 	waitForPod(options.Clientset, pod)
+	stopEventsWatch.CloseOnce()
 
 	var podOptions runtime.Object
 	req := options.Clientset.CoreV1().RESTClient().Post().
@@ -177,6 +181,55 @@ func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod) {
 	controller.Run(stop.Chan)
 }
 
+func watchPodEvents(clientset *kubernetes.Clientset, pod *v1.Pod) *utils.StopChan {
+	stop := utils.NewStopChan()
+	mutex := sync.Mutex{}
+
+	watchlist := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "events", pod.Namespace,
+		fields.Everything())
+	_, controller := cache.NewInformer(
+		watchlist,
+		&v1.Event{},
+		time.Second*0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				mutex.Lock()
+				defer mutex.Unlock()
+
+				e := obj.(*v1.Event)
+
+				if e.InvolvedObject.Kind != "Pod" {
+					return
+				}
+				if e.InvolvedObject.Namespace != pod.Namespace {
+					return
+				}
+				if e.InvolvedObject.Name != pod.Name {
+					return
+				}
+
+				reportedBy := e.ReportingController
+				if e.Source.Component != "" {
+					if reportedBy != "" {
+						reportedBy = reportedBy + ":"
+					}
+					reportedBy = reportedBy + e.Source.Component
+				}
+				log.Stderr.Printf(
+					"[%s] %s[%s]: %s",
+					e.Type,
+					reportedBy,
+					e.Reason,
+					e.Message,
+				)
+			},
+		},
+	)
+
+	go controller.Run(stop.Chan)
+	return stop
+}
+
 func startStream(
 	method string,
 	url *url.URL,
@@ -197,6 +250,17 @@ func stream(options *PodOptions, url *url.URL) error {
 		Stdout: options.Stdout,
 		Stderr: options.Stderr,
 		Tty:    options.Tty,
+	}
+
+	if options.Stdin != nil {
+		switch options.Stdin.(type) {
+		case *streams.In:
+			in := options.Stdin.(*streams.In)
+			if err := in.SetRawTerminal(); err != nil {
+				log.Stderr.Panic(err)
+			}
+			defer in.RestoreTerminal()
+		}
 	}
 
 	if streamOptions.Tty {
