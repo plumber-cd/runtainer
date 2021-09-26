@@ -19,7 +19,7 @@ var (
 	cfgFile string
 
 	rootCmd = &cobra.Command{
-		Use:                   "runtainer [runtainer flags] image [backend flags] [-- [in container args]]",
+		Use:                   "runtainer [runtainer flags] image [container cmd] [-- [container args]]",
 		Short:                 "Run anything as a Container",
 		Long:                  "See https://github.com/plumber-cd/runtainer/README.md for details",
 		DisableFlagsInUseLine: true,
@@ -77,7 +77,7 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().Bool("debug", false, "Debug mode (enables info and debug logs to file)")
+	rootCmd.PersistentFlags().Bool("debug", false, "Enables info and debug logs to file")
 	if err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug")); err != nil {
 		llog.Panic(err)
 	}
@@ -97,7 +97,7 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to stdout what it would run otherwise.")
+	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to StdOut a pod spec it would have run.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)
 	}

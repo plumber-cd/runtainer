@@ -1,13 +1,15 @@
-// Package log - by default, all logging is disabled. The notion of this tool is to run something in a container as it was run on the host.
-// That means we absolutely can't tamper with stdout/stderr,
-// but also polluting a file system with extra files probably won't be such a good idea either.
-// But obviously sometimes you need to debug something and need that extra output - so here we have 4 logger levels defined,
-// 3 of which (error/warning/info) can be enabled via --log (or config file), and debug one can be enabled via --verbose.
-// Verbose mode also enables --logs automatically.
-// Additionally, there is an Stderr logger, that is always pointing to both os.Stderr and log.Error writers and always enabled.
-// This is so when something unexpected happens and the tool is unable to finish successfully, we can use log.Normal.Fatal or log.Normal.Panic
-// to tell the user what happened even if he didn't enable logs, instead of silently crashing which isn't considered a user-friendly practice.
-// To have at least something to distinguish output coming from the tool itself from the backends output, log.Normal always prefixed with "runtainer: ".
+// Package log.
+// There are 5 different loggers.
+// 4 loggers are disabled by default - Debug, Info, Warning and Error.
+// When enabled - they are writing to a file, otherwise they are writing to the void.
+// Regular log mode enables Info, Warning and Error, while debug mode enables all 4 of them.
+// Separately there is a logger log.Normal which is for main communication with the user.
+// The tool never prints to the StdOut reserving that channel exclusively
+// to the container in case it's being pipe'd for output processing.
+// Thus - all log.Normal messages being print to StdErr.
+// Quiet mode will redirect log.Normal into the log.Info logger,
+// which is discarded by default.
+// All log.Normal messages can be filtered out with regexp `^runtainer\:\s`.
 package log
 
 import (

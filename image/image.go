@@ -3,7 +3,6 @@ package image
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -76,15 +75,13 @@ func DiscoverImage(image string) {
 		Stderr: stderr,
 	}
 
-	if viper.GetBool("dry-run") {
-		log.Debug.Print("--dry-run mode enabled")
-		s := kjson.NewYAMLSerializer(kjson.DefaultMetaFactory, scheme.Scheme,
-			scheme.Scheme)
-		err = s.Encode(&podSpec, os.Stderr)
-		if err != nil {
-			log.Normal.Panic(err)
-		}
+	imageProbeBuf := new(bytes.Buffer)
+	kubeJsonSerializer := kjson.NewYAMLSerializer(kjson.DefaultMetaFactory, scheme.Scheme,
+		scheme.Scheme)
+	if err := kubeJsonSerializer.Encode(&podSpec, imageProbeBuf); err != nil {
+		log.Normal.Panic(err)
 	}
+	log.Debug.Printf("Image probe pod: %s", imageProbeBuf.String())
 
 	if err := host.ExecPod(&podOptions); err != nil {
 		log.Normal.Println(stderr.String())

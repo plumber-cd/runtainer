@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
@@ -43,9 +44,9 @@ func Run(containerCmd, containerArgs []string) {
 		ImagePullPolicy: v1.PullPolicy(v1.PullIfNotPresent),
 		Env:             []v1.EnvVar{},
 		VolumeMounts:    []v1.VolumeMount{},
-		SecurityContext: &v1.SecurityContext{
-			Privileged: utils.BoolPtr(true),
-		},
+		// SecurityContext: &v1.SecurityContext{
+		// 	Privileged: utils.BoolPtr(true),
+		// },
 	}
 	podSpec := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -104,14 +105,17 @@ func Run(containerCmd, containerArgs []string) {
 
 	podSpec.Spec.Containers = []v1.Container{containerSpec}
 
+	podSpecJsonBuf := new(bytes.Buffer)
+	kubeJsonSerializer := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
+		scheme.Scheme)
+	if err := kubeJsonSerializer.Encode(&podSpec, podSpecJsonBuf); err != nil {
+		log.Normal.Panic(err)
+	}
+	podSpecJson := podSpecJsonBuf.String()
+	log.Debug.Printf("Pod: %s", podSpecJson)
 	if viper.GetBool("dry-run") {
 		log.Debug.Print("--dry-run mode enabled")
-		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
-			scheme.Scheme)
-		err = s.Encode(&podSpec, os.Stderr)
-		if err != nil {
-			log.Normal.Panic(err)
-		}
+		fmt.Println(podSpecJson)
 		return
 	}
 
