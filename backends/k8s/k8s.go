@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/util/exec"
 
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/host"
@@ -143,6 +144,11 @@ func Run(containerCmd, containerArgs []string) {
 	podSpec.Spec.Containers = []v1.Container{containerSpec}
 
 	if err := host.ExecPod(&podOptions); err != nil {
-		log.Normal.Panic(err)
+		switch e := err.(type) {
+		case exec.CodeExitError:
+			os.Exit(e.ExitStatus())
+		default:
+			log.Normal.Panic(err)
+		}
 	}
 }

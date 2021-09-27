@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
+	uexec "k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/cmd/exec"
 
 	"github.com/plumber-cd/runtainer/log"
@@ -155,8 +156,7 @@ func ExecPod(options *PodOptions) error {
 			}
 		}()
 
-		waitForPod(options.Clientset, pod, v1.PodSucceeded)
-		return nil
+		return extractExitCode(options.Clientset, pod)
 	}
 
 	waitForPod(options.Clientset, pod, v1.PodRunning, v1.PodSucceeded)
@@ -200,10 +200,18 @@ func ExecPod(options *PodOptions) error {
 		scheme.ParameterCodec,
 	)
 
-	return stream(options, req.URL(), method)
+	if err := stream(options, req.URL(), method); err != nil {
+		return err
+	}
+
+	if options.Mode == PodRunModeModeAttach {
+		return extractExitCode(options.Clientset, pod)
+	}
+
+	return nil
 }
 
-func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod, phases ...v1.PodPhase) {
+func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod, phases ...v1.PodPhase) (result *v1.Pod) {
 	stop := utils.NewStopChan()
 
 	watchlist := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", pod.Namespace, fields.Everything())
@@ -219,6 +227,7 @@ func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod, phases ...v1.PodPh
 			// if the pod is in expected status - stop watching
 			for _, phase := range phases {
 				if newPod.Status.Phase == phase {
+					result = newPod
 					stop.CloseOnce()
 					return
 				}
@@ -233,6 +242,7 @@ func waitForPod(clientset *kubernetes.Clientset, pod *v1.Pod, phases ...v1.PodPh
 	})
 
 	controller.Run(stop.Chan)
+	return
 }
 
 func watchPodEvents(clientset *kubernetes.Clientset, pod *v1.Pod) *utils.StopChan {
@@ -326,4 +336,33 @@ func stream(options *PodOptions, url *url.URL, method string) error {
 	}
 
 	return startStream(method, url, options.Config, streamOptions)
+}
+
+func extractExitCode(clientset *kubernetes.Clientset, pod *v1.Pod) error {
+	pod = waitForPod(clientset, pod, v1.PodSucceeded, v1.PodFailed)
+
+	unknownRcErr := fmt.Errorf("unknown exit code")
+
+	switch pod.Status.Phase {
+	case v1.PodSucceeded:
+		return nil
+	case v1.PodFailed:
+		if len(pod.Status.ContainerStatuses) < 1 || pod.Status.ContainerStatuses[0].State.Terminated == nil {
+			return unknownRcErr
+		}
+		rc := pod.Status.ContainerStatuses[0].State.Terminated.ExitCode
+		if rc == 0 {
+			return unknownRcErr
+		}
+		return uexec.CodeExitError{
+			Err: fmt.Errorf(
+				"terminated (%s)\n%s",
+				pod.Status.ContainerStatuses[0].State.Terminated.Reason,
+				pod.Status.ContainerStatuses[0].State.Terminated.Message,
+			),
+			Code: int(rc),
+		}
+	}
+
+	return unknownRcErr
 }
