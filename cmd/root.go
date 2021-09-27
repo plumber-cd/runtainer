@@ -108,6 +108,11 @@ func init() {
 		llog.Panic(err)
 	}
 
+	rootCmd.PersistentFlags().StringSliceP("env", "e", []string{}, "Mapping for env, i.e. --env AWS_PROFILE or --env AWS_PROFILE=foo")
+	if err := viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env")); err != nil {
+		llog.Panic(err)
+	}
+
 	rootCmd.PersistentFlags().StringSliceP("port", "p", []string{}, "Mapping for ports, i.e. --port 8080:8080")
 	if err := viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port")); err != nil {
 		llog.Panic(err)

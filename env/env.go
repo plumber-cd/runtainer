@@ -128,8 +128,8 @@ func DiscoverEnv() {
 	h := viper.Get("host").(host.Host)
 
 	e := make(Env)
-	if en := viper.Get("env"); en != nil {
-		log.Debug.Print("Load user defined env settings")
+	if en := viper.Get("environment"); en != nil {
+		log.Debug.Print("Load user defined environment settings")
 		e = en.(map[string]interface{})
 	}
 
@@ -143,8 +143,21 @@ func DiscoverEnv() {
 	e.AddEnv(h, &DiscoverPrefix{Prefix: "RT_VAR_"})
 	e.AddEnv(h, &DiscoverPrefix{Prefix: "RT_EVAR_", DePrefix: true})
 
+	for _, v := range viper.GetStringSlice("env") {
+		log.Debug.Printf("Parsing --env=%s", v)
+		split := strings.SplitN(v, "=", 2)
+		switch len(split) {
+		case 1:
+			e.AddEnv(h, &DiscoverVariable{Name: split[0]})
+		case 2:
+			e.AddEnv(h, &DiscoverValue{Name: split[0], Value: split[1]})
+		default:
+			log.Normal.Fatalf("Invalid input for --env=%s", v)
+		}
+	}
+
 	log.Debug.Print("Publish to viper")
-	viper.Set("env", e)
+	viper.Set("environment", e)
 }
 
 // DiscoverPorts

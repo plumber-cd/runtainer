@@ -200,7 +200,7 @@ Config files and env variables apart from being an alternative source for CLI ar
 
 ```yaml
 log: true
-env:
+environment:
   # Var FOO have an explicit hardcoded value here
   FOO: foo
   # Var BAR does not have a value, so it will be mirrored from the host at runtime
