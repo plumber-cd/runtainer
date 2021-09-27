@@ -33,7 +33,7 @@ You should be running local Kubernetes cluster. Your Kube Config (`~/.kube/confi
 
 RT will run just fine if you point it to a remote cluster - but it would make a very little sense since environment variables and local paths would not exist on the remote cluster node. Most likely the pod will just fail to start.
 
-Supported setups (theoretically it can do just any local k8s setup, but only following are regularly tested with):
+Status for some of the possible setups that were tested:
 
 #### Mac
 
@@ -43,8 +43,13 @@ Supported setups (theoretically it can do just any local k8s setup, but only fol
 
 #### Windows
 
-- WSL2+K3s: :grey_question:
-- Rancher Desktop: :grey_question:
+For Windows - native `exe` will not work at the moment. RT will not know how to translate Windows paths to Linux paths.
+
+Below are setups in WSL2 Linux:
+
+- Docker for Desktop: :x: (K8s will mount volumes fron a docker VM instead of actual VM)
+- WSL2+K3s: :x: (seems like k3s required systemd which is missing in Ubuntu WSL2)
+- Rancher Desktop: :x: (K8s will mount volumes fron a docker VM instead of actual VM)
 
 #### Linux
 

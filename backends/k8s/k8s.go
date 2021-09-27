@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"runtime"
+	"strings"
 
 	"github.com/docker/cli/cli/streams"
 	v1 "k8s.io/api/core/v1"
@@ -87,18 +89,30 @@ func Run(containerCmd, containerArgs []string) {
 
 	for _, vol := range v.HostMapping {
 		volumeName := fmt.Sprintf("runtainer-%s", utils.RandomHex(4))
-		log.Info.Printf("Adding volume %s: %s:%s", volumeName, vol.Src, vol.Dest)
+		src := vol.Src
+		dst := vol.Dest
+
+		if runtime.GOOS == "windows" {
+			log.Debug.Printf("Since the platform is %s, convert local disks to /mnt", runtime.GOOS)
+			split := strings.SplitN(src, ":\\", 2)
+			if len(split) != 2 {
+				log.Normal.Fatal(fmt.Errorf("Failed to convert windows path %s", src))
+			}
+			src = fmt.Sprintf("/mnt/%s/%s", strings.ToLower(split[0]), split[1])
+		}
+
+		log.Info.Printf("Adding volume %s: %s:%s", volumeName, src, dst)
 		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, v1.Volume{
 			Name: volumeName,
 			VolumeSource: v1.VolumeSource{
 				HostPath: &v1.HostPathVolumeSource{
-					Path: vol.Src,
+					Path: src,
 				},
 			},
 		})
 		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, v1.VolumeMount{
 			Name:      volumeName,
-			MountPath: vol.Dest,
+			MountPath: dst,
 		})
 	}
 
