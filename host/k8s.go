@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"fmt"
+	"golang.org/x/term"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -376,6 +378,17 @@ func stream(options *PodOptions, url *url.URL, method string) error {
 				log.Normal.Panic(err)
 			}
 			defer in.RestoreTerminal()
+		case *os.File:
+			in := options.Stdin.(*os.File)
+			oldState, err := term.MakeRaw(int(in.Fd()))
+			if err != nil {
+				log.Normal.Panic(err)
+			}
+			defer func() {
+				if err := term.Restore(int(in.Fd()), oldState); err != nil {
+					log.Error.Print(err)
+				}
+			}()
 		}
 	}
 
@@ -386,6 +399,11 @@ func stream(options *PodOptions, url *url.URL, method string) error {
 			ContainerName: options.Container,
 			Stdin:         options.Stdin != nil,
 			TTY:           options.Tty,
+			IOStreams: genericclioptions.IOStreams{
+				In:     options.Stdin,
+				Out:    options.Stdout,
+				ErrOut: options.Stderr,
+			},
 		}
 		t := s.SetupTTY()
 		sizeQueue := t.MonitorSize(t.GetSize())
