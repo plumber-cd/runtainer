@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -22,7 +23,9 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/transport/spdy"
 	uexec "k8s.io/client-go/util/exec"
 	"k8s.io/kubectl/pkg/cmd/exec"
 
@@ -52,6 +55,7 @@ type PodOptions struct {
 	Stdout    io.Writer
 	Stderr    io.Writer
 	Tty       bool
+	Ports     map[int]int
 }
 
 func GetKubeClient() (
@@ -159,8 +163,64 @@ func ExecPod(options *PodOptions) error {
 		return extractExitCode(options.Clientset, pod)
 	}
 
-	waitForPod(options.Clientset, pod, v1.PodRunning, v1.PodSucceeded)
+	pod = waitForPod(options.Clientset, pod, v1.PodRunning, v1.PodSucceeded)
 	stopEventsWatch.CloseOnce()
+
+	if pod.Status.Phase == v1.PodRunning {
+		log.Debug.Printf("Pod is still in the running phase - attempt to establish port forwarding....")
+		stopCh := make(chan struct{})
+		defer close(stopCh)
+		readyCh := make(chan struct{})
+		errChan := make(chan error)
+		for local, remote := range options.Ports {
+			log.Debug.Printf("Forwarding %d:%d", local, remote)
+
+			tunnelReq := options.Clientset.
+				CoreV1().
+				RESTClient().
+				Post().
+				Resource("pods").
+				Namespace(options.Namespace).
+				Name(pod.ObjectMeta.Name).
+				SubResource("portforward")
+
+			transport, upgrader, err := spdy.RoundTripperFor(options.Config)
+			if err != nil {
+				return err
+			}
+
+			dialer := spdy.NewDialer(
+				upgrader,
+				&http.Client{Transport: transport},
+				"POST",
+				tunnelReq.URL(),
+			)
+
+			ports := []string{fmt.Sprintf("%d:%d", local, remote)}
+			portforwarder, err := portforward.New(
+				dialer,
+				ports,
+				stopCh,
+				readyCh,
+				log.Info.Writer(),
+				log.Error.Writer(),
+			)
+			if err != nil {
+				return err
+			}
+
+			go func() {
+				errChan <- portforwarder.ForwardPorts()
+			}()
+
+			select {
+			case err = <-errChan:
+				return err
+			case <-portforwarder.Ready:
+				log.Debug.Printf("Successfully created port forwarding %d:%d", local, remote)
+			}
+		}
+	}
 
 	var podOptions runtime.Object
 	method := "POST"

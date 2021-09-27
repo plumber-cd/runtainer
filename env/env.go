@@ -3,6 +3,7 @@ package env
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/plumber-cd/runtainer/host"
@@ -100,6 +101,9 @@ func (d *DiscoverPrefix) discover(_ host.Host) (bool, map[string]interface{}) {
 // If the value is nil, variable will be proxied with no explicit value passing.
 type Env map[string]interface{}
 
+// Port represents container ports mapping
+type Ports map[int]int
+
 // AddEnv adds a pair of key:val to the container environment.
 // It will be automatically discovered accordingly to configured discovery sources.
 // Try each source until something found, if reached the end and nothing found - do nothing.
@@ -141,4 +145,35 @@ func DiscoverEnv() {
 
 	log.Debug.Print("Publish to viper")
 	viper.Set("env", e)
+}
+
+// DiscoverPorts
+func DiscoverPorts() {
+	log.Debug.Print("Discover Ports")
+
+	p := make(Ports)
+	if en := viper.Get("ports"); en != nil {
+		log.Debug.Print("Load user defined ports settings")
+		p = en.(map[int]int)
+	}
+
+	for _, port := range viper.GetStringSlice("port") {
+		log.Debug.Printf("Parsing --port=%s", port)
+		portSplit := strings.Split(port, ":")
+		if len(portSplit) != 2 {
+			log.Normal.Fatalf("Invalid input for --port=%s", port)
+		}
+		local, err := strconv.Atoi(portSplit[0])
+		if err != nil {
+			log.Normal.Fatal(err)
+		}
+		remote, err := strconv.Atoi(portSplit[1])
+		if err != nil {
+			log.Normal.Fatal(err)
+		}
+		p[local] = remote
+	}
+
+	log.Debug.Print("Publish to viper")
+	viper.Set("ports", p)
 }

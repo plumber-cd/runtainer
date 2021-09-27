@@ -20,6 +20,7 @@ func discover(imageName string) {
 
 	host.DiscoverHost()
 	env.DiscoverEnv()
+	env.DiscoverPorts()
 	image.DiscoverImage(imageName)
 	volumes.DiscoverVolumes()
 

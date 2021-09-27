@@ -22,7 +22,7 @@ import (
 func Run(containerCmd, containerArgs []string) {
 	log.Debug.Print("Starting k8s backend")
 
-	h, e, i, v := discover.GetFromViper()
+	h, e, p, i, v := discover.GetFromViper()
 
 	kubeconfig, clientset, namespace, err := host.GetKubeClient()
 	if err != nil {
@@ -99,6 +99,8 @@ func Run(containerCmd, containerArgs []string) {
 			MountPath: vol.Dest,
 		})
 	}
+
+	podOptions.Ports = p
 
 	if len(containerSpec.Command) > 0 {
 		podOptions.Mode = host.PodRunModeModeExec

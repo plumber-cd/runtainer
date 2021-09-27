@@ -202,6 +202,18 @@ func DiscoverVolumes() {
 		Dest: hostHomeMount,
 	})
 
+	for _, vol := range viper.GetStringSlice("volume") {
+		log.Debug.Printf("Parsing --volume=%s", vol)
+		volSplit := strings.Split(vol, ":")
+		if len(volSplit) != 2 {
+			log.Normal.Fatalf("Invalid input for --volume=%s", vol)
+		}
+		volumes.HostMapping = append(volumes.HostMapping, Volume{
+			Src:  volSplit[0],
+			Dest: volSplit[1],
+		})
+	}
+
 	// now we will determine current working directory inside
 	if strings.HasPrefix(h.Cwd, h.Home) {
 		log.Debug.Printf("Host cwd %s is under user home %s, calculating container cwd accordingly", h.Cwd, h.Home)

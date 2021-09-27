@@ -108,6 +108,16 @@ func init() {
 		llog.Panic(err)
 	}
 
+	rootCmd.PersistentFlags().StringSliceP("port", "p", []string{}, "Mapping for ports, i.e. --port 8080:8080")
+	if err := viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().StringSliceP("volume", "v", []string{}, "Mapping for volumes, i.e. --volume /data:/data")
+	if err := viper.BindPFlag("volume", rootCmd.PersistentFlags().Lookup("volume")); err != nil {
+		llog.Panic(err)
+	}
+
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to StdOut a pod spec it would have run.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)

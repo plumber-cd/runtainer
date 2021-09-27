@@ -106,6 +106,7 @@ There are 3 modes RT can run an image:
         runtainer --interactive=false alpine -- whoami
 
    One big downside of this mode is that it essentially disables both `--stdin` and `--tty` - all it does is just streaming logs in read-only mode.
+   It also disables `--port` for the same reason.
 
 With that - a simple rule is to try to use default `PodRunModeModeExec` mode as much as possible, unless `ENTRYPOINT` of the image is not known - then one of the `PodRunModeModeAttach` or `PodRunModeModeLogs` might help.
 

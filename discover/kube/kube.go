@@ -12,7 +12,7 @@ func Discover() {
 	log.Debug.Print("Discover Kubernetes")
 
 	// get what's already calculated by now
-	h, _, i, v := discover.GetFromViper()
+	h, _, _, i, v := discover.GetFromViper()
 
 	v.AddHostMount(h, i, "~/.kube",
 		&volumes.DiscoverEnvVar{Config: volumes.DiscoveryConfig{UseParent: true}, EnvVar: "KUBECONFIG"},
