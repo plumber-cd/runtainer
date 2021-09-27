@@ -99,6 +99,7 @@ func Run(containerCmd, containerArgs []string) {
 				log.Normal.Fatal(fmt.Errorf("Failed to convert windows path %s", src))
 			}
 			src = fmt.Sprintf("/mnt/%s/%s", strings.ToLower(split[0]), split[1])
+			src = strings.Replace(src, "\\", "/", -1)
 		}
 
 		log.Info.Printf("Adding volume %s: %s:%s", volumeName, src, dst)
