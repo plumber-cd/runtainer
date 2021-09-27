@@ -41,15 +41,17 @@ Status for some of the possible setups that were tested:
 - Lima+K3s: :white_check_mark:
 - Rancher Desktop: :x: (it's the same as Lima+K3s under the hood - but see https://github.com/rancher-sandbox/rancher-desktop/issues/678)
 
-#### Windows
+#### Windows Native
 
-For Windows - native `exe` will not work at the moment. RT will not know how to translate Windows paths to Linux paths.
-
-Below are setups in WSL2 Linux:
-
-- Docker for Desktop: :x: (K8s will mount volumes fron a docker VM instead of actual VM)
+- Docker for Desktop: :x: (it would work but Docker VM uses `/mnt/host` instead of just `/mnt` - RT will figure out detecting that automatically)
 - WSL2+K3s: :x: (seems like k3s required systemd which is missing in Ubuntu WSL2)
-- Rancher Desktop: :x: (K8s will mount volumes fron a docker VM instead of actual VM)
+- Rancher Desktop: :white_check_mark:
+
+#### Windows WSL2
+
+- Docker for Desktop: :white_check_mark: (only in `/mnt/` - Docker VM can't mount other VM's paths)
+- WSL2+K3s: :x: (seems like k3s required systemd which is missing in Ubuntu WSL2)
+- Rancher Desktop: :white_check_mark: (only in `/mnt/` - Rancher VM can't mount other VM's paths)
 
 #### Linux
 
