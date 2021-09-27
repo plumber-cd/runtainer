@@ -44,13 +44,14 @@ func DiscoverHost() {
 	}
 	h.Name = hostName
 
+	currentUser, err := user.Current()
+	if err != nil {
+		log.Normal.Panic(err)
+	}
+	h.User = currentUser.Username
+
 	if runtime.GOOS != "windows" {
 		log.Debug.Printf("Since the platform is %s, use UID/GID", runtime.GOOS)
-		currentUser, err := user.Current()
-		if err != nil {
-			log.Normal.Panic(err)
-		}
-		h.User = currentUser.Username
 		if id, err := strconv.ParseInt(currentUser.Uid, 10, 64); err != nil {
 			log.Normal.Panic(err)
 		} else {
