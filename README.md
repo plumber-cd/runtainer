@@ -1,6 +1,6 @@
 # runtainer
 
-Run anything as a container
+Run anything as a container (in local Kubernetes cluster).
 
 - [runtainer](#runtainer)
   - [Getting Started](#getting-started)
@@ -29,9 +29,11 @@ Run anything as a container
 
 ### Prerequisites
 
-You should be running local Kubernetes cluster. Your Kube Config (`~/.kube/config` or `KUBECONFIG`) should be pointing to that local cluster. The tool will run just fine if you point it to remote cluster - but it would make little sense since environment variables and local paths would not exist on the remote cluster node.
+You should be running local Kubernetes cluster. Your Kube Config (`~/.kube/config` or `KUBECONFIG`) should be pointing to that local cluster. RT will use your default context and a namespace set in it.
 
-It has been tested in the following scenarios:
+RT will run just fine if you point it to a remote cluster - but it would make a very little sense since environment variables and local paths would not exist on the remote cluster node. Most likely the pod will just fail to start.
+
+Supported setups (theoretically it can do just any local k8s setup, but only following are regularly tested with):
 
 #### Mac
 
@@ -75,16 +77,46 @@ Don't forget to add it to your `PATH`.
 
 See full CLI [docs](./runtainer.md).
 
-Basically the idea is that on the left of the image - you provide any arguments to the `runtainer` itself. On the right (all the way up to the `--` separator) is a CMD that will be passed as-is to the container. The rest after the `--` separator - will be supplied as args to that container.
+Image name serves as a separator. To its left RT's own arguments are expected. To it's right - command and arguments to be passed to the container.
 
-A few examples are below.
+Command separated from the arguments by a `--`, as described in the POSIX chapter 12.02, Guideline 10: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02. Both command and arguments are two arrays of strings in Kubernetes API, so from the user perspective - separator is not required to be used explicitly as K8s will accept it just fine without it. You will want to use a separator when you need to use default `ENTRYPOINT` (`.spec.container[].command`) from the image while passing custom arguments `CMD` (`.spec.container[].args`) to it.
+
+There are 3 modes RT can run an image:
+
+1. By default, preferred method is `PodRunModeModeExec`. RT will use `.spec.container[].command = ["cat"]` without arguments to start a pod (which will keep it running doing nothing indefinitely) and then it will exec into that pod executing combined command and arguments from the RT input. Technically, in this mode there is no difference between interactive and non-interactive mode, so `--interactive` flag is effectively ignored.
+
+        runtainer alpine sh # interactive
+        runtainer alpine whoami # non-interactive
+
+   This mode is preferred because RT can guarantee nothing will get executed in the container that the user can miss in the terminal and because this mode does not have downsides of other modes.
+
+2. When there is no command passed to the RT (even if arguments were passed) - RT will not be able to determine default `ENTRYPOINT` of the image to run the previous mode. In this case RT will use `PodRunModeModeAttach` mode - it will set `.spec.container[].args` accordingly to RT input and start a pod and then attach to it.
+
+        runtainer alpine -- sh
+
+   In this mode there's always a chance that the user may miss some activity in the container from the moment the pod became `running` and RT was able to attach to it.
+   Probably due to that (or might be some other weird bug in `k8s.io/client-go`) - you almost 100% guaranteed not going to see initial command prompt after the attachment, that's why you will be presented with a message `If you don't see a command prompt, try pressing enter.` - the same one `kubectl run` will present you with.
+   Also, this mode requires user to explicitly tell RT if that is interactive session or not. Otherwise if it is not interactive - by the time RT will try to attach the pod might already be in `succeeded` state, so RT will fail with an ugly message. You can try it: `runtainer alpine -- whoami`.
+   Lastly, regardless of `--stdin` value - RT will not be able to pass its own StdIn to the container. The main container process has been already started by kubelet without RT participation and RT attaches to it mid-term. Even though any input after the attachment will be transferred to the container just fine - any initial StdIn such as pipe from another program will not be possible:
+
+        echo hi | runtainer alpine -- xargs echo # will not print hi
+
+3. Third mode `PodRunModeModeLogs` essentially is complimentary to `PodRunModeModeAttach` - it's basically the same one but it's expecting pod to become `succeeded` without user interaction so it will not ever try to attach to it. Instead it will use pod logs API to stream logs which can be done as long as the pod exists (even after it succeeded before it's being garbage-collected).
+
+        runtainer --interactive=false alpine -- whoami
+
+   One big downside of this mode is that it essentially disables both `--stdin` and `--tty` - all it does is just streaming logs in read-only mode.
+
+With that - a simple rule is to try to use default `PodRunModeModeExec` mode as much as possible, unless `ENTRYPOINT` of the image is not known - then one of the `PodRunModeModeAttach` or `PodRunModeModeLogs` might help.
+
+Below is a few more examples:
 
 #### Basic container run
 
 ```bash
 runtainer alpine whoami
-runtainer maven:3.6.3-jdk-14 -- -version
 runtainer maven:3.6.3-jdk-14 mvn -version
+runtainer maven:3.6.3-jdk-14 mvn -- -version
 ```
 
 #### Exec into container and stay there
@@ -105,15 +137,15 @@ runtainer -v $(cd && pwd)/.jenkins:/var/jenkins_home -p 8080:8080 jenkins/jenkin
 Or maybe you want to test a Jenkins plugin?
 
 ```bash
-runtainer -p 8080:8080 maven:3.8.1-jdk-8 -- -Dhost=0.0.0.0 clean hpi:run
+runtainer -p 8080:8080 maven:3.8.1-jdk-8 mvn -Dhost=0.0.0.0 clean hpi:run
 ```
 
 #### Extra ENV variables
 
 ```bash
-runtainer -e PROFILE maven:3.6.3-jdk-14 -- -version
+runtainer -e PROFILE maven:3.6.3-jdk-14 mvn -version
 # OR
-runtainer -e PROFILE=foo maven:3.6.3-jdk-14 -- -version
+runtainer -e PROFILE=foo maven:3.6.3-jdk-14 mvn -version
 ```
 
 It will also automatically discover ENV variables with `RT_VAR_*` and `RT_EVAR_*` prefixes.
@@ -127,19 +159,22 @@ You will see that `RT_VAR_FOO` was passed to the container as-is, and `RT_EVAR_B
 #### Custom directory
 
 ```bash
-runtainer -d /tmp alpine -- touch hi.txt
+runtainer -d /tmp alpine touch hi.txt
 ```
 
 #### Piping
 
 ```bash
-echo hi | runtainer -t=false alpine -- xargs echo
-runtainer alpine -- echo hi | runtainer -t=false alpine -- xargs echo
+echo hi | runtainer -t=false alpine xargs echo
 ```
 
-By default `runtainer` runs containers with `--stdin` and `--tty`, so you could use container interactively with minimum extra moves.
-Note we had to explicitly disable `--tty` so it could read stdin from a pipe.
-You can even pipe multiple `runtainer` calls too.
+By default `runtainer` run containers with `--stdin` and `--tty`, so you could use container interactively with minimum extra moves.
+But for piping we need to explicitly disable `--tty` so it could read stdin from a pipe and not a virtual terminal.
+You can even pipe multiple `runtainer` calls too:
+
+```bash
+runtainer alpine echo hi | runtainer -t=false alpine xargs echo
+```
 
 #### Troubleshooting
 
@@ -179,7 +214,7 @@ Run it with `--debug` and you will be able to visually inspect what the tool aut
 
 ## Why
 
-Containers purpose is to run every process in its own isolated, self-contained and portable environment.
+Container's purpose is to run every process in its own isolated, self-contained and portable environment.
 This is a very well known and widely adopted concept in application development.
 What is less commonly used is the fact that you can also pack your tools as a container image and run it anywhere. Think of container images like a `brew` or `chocolatey` or even `pyenv`. You never actually have to install anything on your workstation anymore. You can easily choose which version of what you want to use by just changing the image tag.
 
@@ -214,7 +249,7 @@ As you probably already imagined, the only problem with this approach is - a lot
 
 This tool basically aims to remove that overhead. It will automatically discover all known file system locations and environment variables and pass them to the container so you don't have to. It is basically a smart equivalent for `docker run` or `kubernetes run` commands.
 
-For portability under the hood it is using Kubernetes. That way no matter your container engine choice - the tool will always be able to run.
+For portability under the hood RT is using Kubernetes. That way no matter your container engine choice - the tool will always be able to run.
 
 ## Disclaimer
 

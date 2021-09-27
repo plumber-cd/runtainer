@@ -42,9 +42,6 @@ func Run(containerCmd, containerArgs []string) {
 		ImagePullPolicy: v1.PullPolicy(v1.PullIfNotPresent),
 		Env:             []v1.EnvVar{},
 		VolumeMounts:    []v1.VolumeMount{},
-		// SecurityContext: &v1.SecurityContext{
-		// 	Privileged: utils.BoolPtr(true),
-		// },
 	}
 	podSpec := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -59,6 +56,16 @@ func Run(containerCmd, containerArgs []string) {
 			},
 			RestartPolicy: v1.RestartPolicyNever,
 		},
+	}
+	podOptions := host.PodOptions{
+		Config:    kubeconfig,
+		Clientset: clientset,
+		Namespace: namespace,
+		PodSpec:   &podSpec,
+		Container: containerName,
+		Mode:      host.PodRunModeModeAttach,
+		Stdout:    os.Stdout,
+		Stderr:    os.Stderr,
 	}
 
 	for key, val := range e {
@@ -92,17 +99,32 @@ func Run(containerCmd, containerArgs []string) {
 		})
 	}
 
+	if len(containerSpec.Command) > 0 {
+		podOptions.Mode = host.PodRunModeModeExec
+		podOptions.ExecCmd = append(containerSpec.Command, containerSpec.Args...)
+		containerSpec.Command = []string{"cat"}
+		containerSpec.Args = []string{}
+	} else {
+		if viper.GetBool("interactive") {
+			log.Debug.Print("--interactive mode enabled")
+			podOptions.Mode = host.PodRunModeModeAttach
+		} else {
+			log.Debug.Print("--interactive mode disabled")
+			podOptions.Mode = host.PodRunModeModeLogs
+		}
+	}
+
 	if viper.GetBool("stdin") {
-		log.Debug.Print("--tty mode enabled for container")
+		log.Debug.Print("--stdin mode enabled")
 		containerSpec.Stdin = true
+		podOptions.Stdin = streams.NewIn(os.Stdin)
 	}
 
 	if viper.GetBool("tty") {
-		log.Debug.Print("--tty mode enabled for container")
+		log.Debug.Print("--tty mode enabled")
 		containerSpec.TTY = true
+		podOptions.Tty = true
 	}
-
-	podSpec.Spec.Containers = []v1.Container{containerSpec}
 
 	podSpecJsonBuf := new(bytes.Buffer)
 	kubeJsonSerializer := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
@@ -118,32 +140,7 @@ func Run(containerCmd, containerArgs []string) {
 		return
 	}
 
-	podOptions := host.PodOptions{
-		Config:    kubeconfig,
-		Clientset: clientset,
-		Namespace: namespace,
-		PodSpec:   &podSpec,
-		Container: containerName,
-		Mode:      host.PodRunModeModeAttach,
-		Stdout:    os.Stdout,
-		Stderr:    os.Stderr,
-	}
-
-	if viper.GetBool("interactive") {
-		podOptions.Mode = host.PodRunModeModeAttach
-	} else {
-		podOptions.Mode = host.PodRunModeModeLogs
-	}
-
-	if viper.GetBool("stdin") {
-		log.Debug.Print("--stdin mode enabled")
-		podOptions.Stdin = streams.NewIn(os.Stdin)
-	}
-
-	if viper.GetBool("tty") {
-		log.Debug.Print("--tty mode enabled")
-		podOptions.Tty = true
-	}
+	podSpec.Spec.Containers = []v1.Container{containerSpec}
 
 	if err := host.ExecPod(&podOptions); err != nil {
 		log.Normal.Panic(err)

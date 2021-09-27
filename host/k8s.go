@@ -112,6 +112,8 @@ func GetKubeClient() (
 }
 
 func ExecPod(options *PodOptions) error {
+	log.Normal.Printf("Running mode: %s", options.Mode)
+
 	podsClient := options.Clientset.CoreV1().Pods(options.Namespace)
 
 	pod, err := podsClient.Create(context.TODO(), options.PodSpec, metav1.CreateOptions{})
@@ -318,7 +320,9 @@ func stream(options *PodOptions, url *url.URL, method string) error {
 		t := s.SetupTTY()
 		sizeQueue := t.MonitorSize(t.GetSize())
 		streamOptions.TerminalSizeQueue = sizeQueue
-		log.Normal.Println("If you don't see a command prompt, try pressing enter.")
+		if options.Mode == PodRunModeModeAttach {
+			log.Normal.Println("If you don't see a command prompt, try pressing enter.")
+		}
 	}
 
 	return startStream(method, url, options.Config, streamOptions)
