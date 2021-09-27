@@ -131,6 +131,8 @@ func Run(containerCmd, containerArgs []string) {
 		podOptions.Tty = true
 	}
 
+	podSpec.Spec.Containers = []v1.Container{containerSpec}
+
 	podSpecJsonBuf := new(bytes.Buffer)
 	kubeJsonSerializer := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme,
 		scheme.Scheme)
@@ -144,8 +146,6 @@ func Run(containerCmd, containerArgs []string) {
 		fmt.Println(podSpecJson)
 		return
 	}
-
-	podSpec.Spec.Containers = []v1.Container{containerSpec}
 
 	if err := host.ExecPod(&podOptions); err != nil {
 		switch e := err.(type) {
