@@ -50,12 +50,9 @@ func Run(containerCmd, containerArgs []string) {
 			Namespace: namespace,
 		},
 		Spec: v1.PodSpec{
-			Volumes: []v1.Volume{},
-			SecurityContext: &v1.PodSecurityContext{
-				SupplementalGroups: []int64{h.GID},
-				FSGroup:            &h.GID,
-			},
-			RestartPolicy: v1.RestartPolicyNever,
+			Volumes:         []v1.Volume{},
+			SecurityContext: &v1.PodSecurityContext{},
+			RestartPolicy:   v1.RestartPolicyNever,
 		},
 	}
 	podOptions := host.PodOptions{
@@ -67,6 +64,11 @@ func Run(containerCmd, containerArgs []string) {
 		Mode:      host.PodRunModeModeAttach,
 		Stdout:    os.Stdout,
 		Stderr:    os.Stderr,
+	}
+
+	if h.GID > 0 {
+		podSpec.Spec.SecurityContext.SupplementalGroups = []int64{h.GID}
+		podSpec.Spec.SecurityContext.FSGroup = &h.GID
 	}
 
 	for key, val := range e {

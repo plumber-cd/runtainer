@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 
 	"github.com/mitchellh/go-homedir"
@@ -43,20 +44,23 @@ func DiscoverHost() {
 	}
 	h.Name = hostName
 
-	currentUser, err := user.Current()
-	if err != nil {
-		log.Normal.Panic(err)
-	}
-	h.User = currentUser.Username
-	if id, err := strconv.ParseInt(currentUser.Uid, 10, 64); err != nil {
-		log.Normal.Panic(err)
-	} else {
-		h.UID = id
-	}
-	if id, err := strconv.ParseInt(currentUser.Gid, 10, 64); err != nil {
-		log.Normal.Panic(err)
-	} else {
-		h.GID = id
+	if runtime.GOOS != "windows" {
+		log.Debug.Printf("Since the platform is %s, use UID/GID", runtime.GOOS)
+		currentUser, err := user.Current()
+		if err != nil {
+			log.Normal.Panic(err)
+		}
+		h.User = currentUser.Username
+		if id, err := strconv.ParseInt(currentUser.Uid, 10, 64); err != nil {
+			log.Normal.Panic(err)
+		} else {
+			h.UID = id
+		}
+		if id, err := strconv.ParseInt(currentUser.Gid, 10, 64); err != nil {
+			log.Normal.Panic(err)
+		} else {
+			h.GID = id
+		}
 	}
 
 	home, err := homedir.Dir()
