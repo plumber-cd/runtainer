@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2021-09-26
+
+### BREAKING CHANGES
+
+- Docker CLI is no longer used
+- RT now uses K8s Go Client to run container in a pod
+- There are substantial breaking changes in RT CLI arguments to back up that change
+
 ## [0.0.2] - 2020-08-25
 
 ### Added
