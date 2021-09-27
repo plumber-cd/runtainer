@@ -17,7 +17,7 @@ func Discover() {
 	log.Debug.Print("Discover Go")
 
 	// get what's already calculated by now
-	h, _, i, v := discover.GetFromViper()
+	h, _, _, i, v := discover.GetFromViper()
 
 	v.AddHostMount(h, i, defaultGoPath,
 		&volumes.DiscoverEnvVar{EnvVar: "GOPATH"},

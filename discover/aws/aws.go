@@ -13,7 +13,7 @@ func Discover() {
 	log.Debug.Print("Discover AWS")
 
 	// get what's already calculated by now
-	h, e, i, v := discover.GetFromViper()
+	h, e, _, i, v := discover.GetFromViper()
 
 	e.AddEnv(h, &env.DiscoverVariable{Name: "AWS_ACCESS_KEY_ID"})
 	e.AddEnv(h, &env.DiscoverVariable{Name: "AWS_SECRET_ACCESS_KEY"})

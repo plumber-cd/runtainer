@@ -10,7 +10,7 @@ import (
 func RandomHex(n int) string {
 	bytes := make([]byte, n)
 	if _, err := rand.Read(bytes); err != nil {
-		log.Stderr.Panic(err)
+		log.Normal.Panic(err)
 	}
 	return hex.EncodeToString(bytes)
 }

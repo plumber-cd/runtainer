@@ -2,8 +2,8 @@ package env
 
 import (
 	"fmt"
-	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/plumber-cd/runtainer/host"
@@ -101,6 +101,9 @@ func (d *DiscoverPrefix) discover(_ host.Host) (bool, map[string]interface{}) {
 // If the value is nil, variable will be proxied with no explicit value passing.
 type Env map[string]interface{}
 
+// Port represents container ports mapping
+type Ports map[int]int
+
 // AddEnv adds a pair of key:val to the container environment.
 // It will be automatically discovered accordingly to configured discovery sources.
 // Try each source until something found, if reached the end and nothing found - do nothing.
@@ -125,8 +128,8 @@ func DiscoverEnv() {
 	h := viper.Get("host").(host.Host)
 
 	e := make(Env)
-	if en := viper.Get("env"); en != nil {
-		log.Debug.Print("Load user defined env settings")
+	if en := viper.Get("environment"); en != nil {
+		log.Debug.Print("Load user defined environment settings")
 		e = en.(map[string]interface{})
 	}
 
@@ -136,31 +139,54 @@ func DiscoverEnv() {
 	e.AddEnv(h, &DiscoverValue{Name: "RT_HOST_HOME", Value: h.Home})
 	e.AddEnv(h, &DiscoverValue{Name: "RT_HOST_CWD", Value: h.Cwd})
 
-	// Unless explicitly disabled, we need to account for possible docker in docker calls.
-	// We will look into DOCKER_HOST and if it pointing to the local network interface,
-	// we need to translate it to host.docker.internal so it's accessible from within the container.
-	if !viper.GetBool("dind") {
-		log.Debug.Print("Checking DOCKER_HOST for dind")
-		if dockerHost, dockerHostExists := os.LookupEnv("DOCKER_HOST"); dockerHostExists {
-			log.Debug.Printf("DOCKER_HOST env var detected: %s", dockerHost)
-			u, err := url.Parse(dockerHost)
-			if err != nil {
-				log.Stderr.Panic(err)
-			}
-			if u.Hostname() == "localhost" || strings.HasPrefix(u.Hostname(), "127.") {
-				internal := "host.docker.internal"
-				log.Debug.Printf("DOCKER_HOST env var was pointing to localhost (%s), patch it to %s", u.Hostname(), internal)
-				u.Host = internal + ":" + u.Port()
-			}
-			log.Debug.Printf("Adding DOCKER_HOST=%s", u.String())
-			e.AddEnv(h, &DiscoverValue{Name: "DOCKER_HOST", Value: u.String()})
-		}
-	}
-
 	// now we mirror any env vars that starts with RT_VAR_* and RT_EVAR_* to account for any possible user-defined vars
 	e.AddEnv(h, &DiscoverPrefix{Prefix: "RT_VAR_"})
 	e.AddEnv(h, &DiscoverPrefix{Prefix: "RT_EVAR_", DePrefix: true})
 
+	for _, v := range viper.GetStringSlice("env") {
+		log.Debug.Printf("Parsing --env=%s", v)
+		split := strings.SplitN(v, "=", 2)
+		switch len(split) {
+		case 1:
+			e.AddEnv(h, &DiscoverVariable{Name: split[0]})
+		case 2:
+			e.AddEnv(h, &DiscoverValue{Name: split[0], Value: split[1]})
+		default:
+			log.Normal.Fatalf("Invalid input for --env=%s", v)
+		}
+	}
+
 	log.Debug.Print("Publish to viper")
-	viper.Set("env", e)
+	viper.Set("environment", e)
+}
+
+// DiscoverPorts
+func DiscoverPorts() {
+	log.Debug.Print("Discover Ports")
+
+	p := make(Ports)
+	if en := viper.Get("ports"); en != nil {
+		log.Debug.Print("Load user defined ports settings")
+		p = en.(map[int]int)
+	}
+
+	for _, port := range viper.GetStringSlice("port") {
+		log.Debug.Printf("Parsing --port=%s", port)
+		portSplit := strings.Split(port, ":")
+		if len(portSplit) != 2 {
+			log.Normal.Fatalf("Invalid input for --port=%s", port)
+		}
+		local, err := strconv.Atoi(portSplit[0])
+		if err != nil {
+			log.Normal.Fatal(err)
+		}
+		remote, err := strconv.Atoi(portSplit[1])
+		if err != nil {
+			log.Normal.Fatal(err)
+		}
+		p[local] = remote
+	}
+
+	log.Debug.Print("Publish to viper")
+	viper.Set("ports", p)
 }

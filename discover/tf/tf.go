@@ -13,7 +13,7 @@ func Discover() {
 	log.Debug.Print("Discover Terraform")
 
 	// get what's already calculated by now
-	h, e, i, v := discover.GetFromViper()
+	h, e, _, i, v := discover.GetFromViper()
 
 	e.AddEnv(h, &env.DiscoverVariable{Name: "CHECKPOINT_DISABLE"})
 	e.AddEnv(h, &env.DiscoverVariable{Name: "TF_LOG"})

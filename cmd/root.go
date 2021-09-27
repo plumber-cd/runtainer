@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	homedir "github.com/mitchellh/go-homedir"
-	"github.com/plumber-cd/runtainer/backends/docker"
+	"github.com/plumber-cd/runtainer/backends/k8s"
 	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/utils"
 	"github.com/spf13/cobra"
@@ -19,7 +19,7 @@ var (
 	cfgFile string
 
 	rootCmd = &cobra.Command{
-		Use:                   "runtainer [runtainer flags] image [backend flags] [-- [in container args]]",
+		Use:                   "runtainer [runtainer flags] image [container cmd] [-- [container args]]",
 		Short:                 "Run anything as a Container",
 		Long:                  "See https://github.com/plumber-cd/runtainer/README.md for details",
 		DisableFlagsInUseLine: true,
@@ -35,7 +35,7 @@ var (
 			// rest of the args split by -- delimiter
 			// See POSIX chapter 12.02, Guideline 10: https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02
 			// On the left, args considered to be passed to the backend (docker/kubectl/etc), on the right args considered to be passed to the container
-			backendArgs, containerArgs := splitArgs(args[1:])
+			containerCmd, containerArgs := splitArgs(args[1:])
 
 			// run discovery routines that will publish all the facts to viper for backend engine to interpret
 			discover(imageName)
@@ -43,17 +43,11 @@ var (
 			// just for debugging, dump full viper data before passing it to the backends
 			allSettings, err := json.MarshalIndent(viper.AllSettings(), "", "  ")
 			if err != nil {
-				log.Stderr.Panic(err)
+				log.Normal.Panic(err)
 			}
 			log.Debug.Printf("Settings: %s", string(allSettings))
 
-			backend := viper.GetString("backend")
-			switch backend {
-			case "docker":
-				docker.Run(backendArgs, containerArgs)
-			default:
-				log.Stderr.Fatalf("Unknown backend: %s", backend)
-			}
+			k8s.Run(containerCmd, containerArgs)
 		},
 	}
 )
@@ -68,27 +62,43 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "global config file (default is $HOME/.runtainer.yaml)")
 
-	rootCmd.PersistentFlags().BoolP("log", "l", false, "Enable logs")
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, `Enable quiet mode.
+	By default runtainer never prints to StdOut,
+	reserving that channel exclusively to the container.
+	But it does print messages to StdErr.
+	Enabling quiet mode will redirect all messages to the info logger.
+	If --log mode was not enabled - these messages will be discarded.`)
+	if err := viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().Bool("log", false, "Enables info logs to file")
 	if err := viper.BindPFlag("log", rootCmd.PersistentFlags().Lookup("log")); err != nil {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose mode (also enables logs)")
-	if err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")); err != nil {
+	rootCmd.PersistentFlags().Bool("debug", false, "Enables info and debug logs to file")
+	if err := viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug")); err != nil {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().StringP("backend", "b", "docker", "Backend to run container; only docker supported at the moment")
-	if err := viper.BindPFlag("backend", rootCmd.PersistentFlags().Lookup("backend")); err != nil {
+	rootCmd.PersistentFlags().BoolP("interactive", "i", true, `Disable to not to attach to the container.
+	By default we wait till pod becomes Running and then - attaching to it.
+	If container expected to run a script in non-interactive mode and exit,
+	- the tool might try to attach to the container that is already finished and fail.
+	Disable interactive mode in this case - then it will not attempt to attach
+	and instead will just stream logs until containe becomes either Succeeded or Failed.
+	This automatically disables --stdin and --tty.`)
+	if err := viper.BindPFlag("interactive", rootCmd.PersistentFlags().Lookup("interactive")); err != nil {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("stdin", "i", true, "Use --interactive for docker and --stdin for kubectl")
+	rootCmd.PersistentFlags().BoolP("stdin", "s", true, "Redirect host StdIn to the container")
 	if err := viper.BindPFlag("stdin", rootCmd.PersistentFlags().Lookup("stdin")); err != nil {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("tty", "t", true, "Use --tty for backend, disable if piping something to stdin")
+	rootCmd.PersistentFlags().BoolP("tty", "t", true, "Enable TTY, disable if piping something to stdin")
 	if err := viper.BindPFlag("tty", rootCmd.PersistentFlags().Lookup("tty")); err != nil {
 		llog.Panic(err)
 	}
@@ -98,12 +108,22 @@ func init() {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().Bool("dind", false, "Disable passing DOCKER_HOST to the container, enable if image has it's own dind and you don't want it to use the host Docker")
-	if err := viper.BindPFlag("dind", rootCmd.PersistentFlags().Lookup("dind")); err != nil {
+	rootCmd.PersistentFlags().StringSliceP("env", "e", []string{}, "Mapping for env, i.e. --env AWS_PROFILE or --env AWS_PROFILE=foo")
+	if err := viper.BindPFlag("env", rootCmd.PersistentFlags().Lookup("env")); err != nil {
 		llog.Panic(err)
 	}
 
-	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to stdout what it would run otherwise. Note container will still launch as part of discovery phase.")
+	rootCmd.PersistentFlags().StringSliceP("port", "p", []string{}, "Mapping for ports, i.e. --port 8080:8080")
+	if err := viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().StringSliceP("volume", "v", []string{}, "Mapping for volumes, i.e. --volume /data:/data")
+	if err := viper.BindPFlag("volume", rootCmd.PersistentFlags().Lookup("volume")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to StdOut a pod spec it would have run.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)
 	}
@@ -119,10 +139,10 @@ func initConfig() {
 
 		exists, err := utils.FileExists(cfgFile)
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Normal.Panic(err)
 		}
 		if !exists {
-			log.Stderr.Fatalf("Global config file not found: %s", cfgFile)
+			log.Normal.Fatalf("Global config file not found: %s", cfgFile)
 		}
 
 		// Use config file from the flag.
@@ -133,7 +153,7 @@ func initConfig() {
 		// Find home directory.
 		home, err := homedir.Dir()
 		if err != nil {
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 
 		// Search config in home directory with name ".runtainer" (without extension).
@@ -153,7 +173,7 @@ func initConfig() {
 		case viper.ConfigFileNotFoundError:
 			log.Debug.Printf("Global %s, skipping...", err)
 		default:
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 	} else {
 		log.Debug.Print("Using global config file:", viper.ConfigFileUsed())
@@ -162,7 +182,7 @@ func initConfig() {
 	// try to read (if exists) local config file in the cwd
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Stderr.Panic(err)
+		log.Error.Panic(err)
 	}
 	readLocalConfig(cwd)
 
@@ -192,12 +212,12 @@ func readLocalConfig(d string) {
 		case viper.ConfigFileNotFoundError:
 			log.Debug.Printf("Local %s, skipping...", err)
 		default:
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 	} else {
 		log.Debug.Print("Using local config file:", v.ConfigFileUsed())
 		if err := viper.MergeConfigMap(v.AllSettings()); err != nil {
-			log.Stderr.Panic(err)
+			log.Error.Panic(err)
 		}
 	}
 }
