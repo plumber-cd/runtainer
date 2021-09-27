@@ -50,9 +50,9 @@ Status for some of the possible setups that were tested:
 
 #### Windows WSL2
 
-- Docker for Desktop: :white_check_mark: (only in `/mnt` - Docker VM can't mount other VM's paths)
+- Docker for Desktop: :white_check_mark: (only in `/mnt` - Docker VM can't mount other VM's paths; alternative - move your code to the Docker VM)
 - WSL2+K3s: :x: (seems like k3s required systemd which is missing in Ubuntu WSL2)
-- Rancher Desktop: :white_check_mark: (only in `/mnt` - Rancher VM can't mount other VM's paths)
+- Rancher Desktop: :white_check_mark: (only in `/mnt` - Rancher VM can't mount other VM's paths; alternative - move your code to the Rancher VM)
 
 #### Linux
 
