@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/cli/cli/streams"
+	"github.com/moby/term"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -23,6 +24,8 @@ import (
 
 func Run(containerCmd, containerArgs []string) {
 	log.Debug.Print("Starting k8s backend")
+
+	stdIn, stdOut, stdErr := term.StdStreams()
 
 	h, e, p, i, v := discover.GetFromViper()
 
@@ -64,8 +67,8 @@ func Run(containerCmd, containerArgs []string) {
 		PodSpec:   &podSpec,
 		Container: containerName,
 		Mode:      host.PodRunModeModeAttach,
-		Stdout:    os.Stdout,
-		Stderr:    os.Stderr,
+		Stdout:    stdOut,
+		Stderr:    stdErr,
 	}
 
 	if h.GID > 0 {
@@ -137,7 +140,7 @@ func Run(containerCmd, containerArgs []string) {
 	if viper.GetBool("stdin") {
 		log.Debug.Print("--stdin mode enabled")
 		containerSpec.Stdin = true
-		podOptions.Stdin = streams.NewIn(os.Stdin)
+		podOptions.Stdin = streams.NewIn(stdIn)
 	}
 
 	if viper.GetBool("tty") {
