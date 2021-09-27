@@ -6,7 +6,8 @@ Run anything as a container (in local Kubernetes cluster).
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
       - [Mac](#mac)
-      - [Windows](#windows)
+      - [Windows Native](#windows-native)
+      - [Windows WSL2](#windows-wsl2)
       - [Linux](#linux)
     - [Installation](#installation)
       - [Brew](#brew)
@@ -43,7 +44,7 @@ Status for some of the possible setups that were tested:
 
 #### Windows Native
 
-- Docker for Desktop: :x: (it would work but Docker VM uses `/mnt/host` instead of just `/mnt` - RT will figure out detecting that automatically)
+- Docker for Desktop: :x: (it would work but Docker VM uses `/mnt/host` instead of just `/mnt` - RT will have to figure out detecting that automatically - it can be fixed)
 - WSL2+K3s: :x: (seems like k3s required systemd which is missing in Ubuntu WSL2)
 - Rancher Desktop: :white_check_mark:
 
