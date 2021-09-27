@@ -58,6 +58,7 @@ Status for some of the possible setups that were tested:
 
 - Docker CE: :grey_question:
 - ContainerD: :grey_question:
+- K3s: :grey_question:
 
 ### Installation
 
