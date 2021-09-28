@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/cli/cli/streams"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -372,12 +371,6 @@ func stream(options *PodOptions, url *url.URL, method string) error {
 
 	if options.Stdin != nil {
 		switch options.Stdin.(type) {
-		case *streams.In:
-			in := options.Stdin.(*streams.In)
-			if err := in.SetRawTerminal(); err != nil {
-				log.Normal.Panic(err)
-			}
-			defer in.RestoreTerminal()
 		case *os.File:
 			in := options.Stdin.(*os.File)
 			oldState, err := term.MakeRaw(int(in.Fd()))

@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/cli/cli/streams"
 	"github.com/moby/term"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,7 +139,7 @@ func Run(containerCmd, containerArgs []string) {
 	if viper.GetBool("stdin") {
 		log.Debug.Print("--stdin mode enabled")
 		containerSpec.Stdin = true
-		podOptions.Stdin = streams.NewIn(stdIn)
+		podOptions.Stdin = stdIn
 	}
 
 	if viper.GetBool("tty") {
