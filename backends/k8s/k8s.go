@@ -70,6 +70,13 @@ func Run(containerCmd, containerArgs []string) {
 		Stderr:    stdErr,
 	}
 
+	if secret := viper.GetString("secret"); secret != "" {
+		log.Debug.Print("--secret enabled")
+		podSpec.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+			{Name: secret},
+		}
+	}
+
 	if h.GID > 0 {
 		podSpec.Spec.SecurityContext.SupplementalGroups = []int64{h.GID}
 		podSpec.Spec.SecurityContext.FSGroup = &h.GID

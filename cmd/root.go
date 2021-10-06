@@ -123,6 +123,11 @@ func init() {
 		llog.Panic(err)
 	}
 
+	rootCmd.PersistentFlags().StringP("secret", "S", "", "Optionally, provide a name of the secret to be used for the image pull")
+	if err := viper.BindPFlag("secret", rootCmd.PersistentFlags().Lookup("secret")); err != nil {
+		llog.Panic(err)
+	}
+
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to StdOut a pod spec it would have run.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)

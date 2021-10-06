@@ -54,6 +54,13 @@ func DiscoverImage(image string) {
 		},
 	}
 
+	if secret := viper.GetString("secret"); secret != "" {
+		log.Debug.Print("--secret enabled")
+		podSpec.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+			{Name: secret},
+		}
+	}
+
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 

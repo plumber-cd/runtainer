@@ -20,6 +20,7 @@ Run anything as a container (in local Kubernetes cluster).
       - [Extra ENV variables](#extra-env-variables)
       - [Custom directory](#custom-directory)
       - [Piping](#piping)
+      - [Private Images](#private-images)
       - [Troubleshooting](#troubleshooting)
     - [Configuration](#configuration)
   - [Why](#why)
@@ -184,6 +185,24 @@ You can even pipe multiple `runtainer` calls too:
 
 ```bash
 runtainer alpine echo hi | runtainer -t=false alpine xargs echo
+```
+
+#### Private Images
+
+First, you will have to create an Image Pull Secret in whichever way you normally prefer, for example:
+
+```bash
+kubectl create secret docker-registry my-registry \
+    --docker-server=<registry> \
+    --docker-username=<username> \
+    --docker-password=<pwd> \
+    --docker-email=<email>
+```
+
+Now you all you need is to tell RT the secret name to use:
+
+```bash
+runtainer --secret my-registry registry/image
 ```
 
 #### Troubleshooting
