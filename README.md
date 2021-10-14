@@ -41,7 +41,7 @@ Status for some of the possible setups that were tested:
 
 - Docker for Desktop: :white_check_mark:
 - Lima+K3s: :white_check_mark:
-- Rancher Desktop: :x: (it's the same as Lima+K3s under the hood - but see https://github.com/rancher-sandbox/rancher-desktop/issues/678)
+- Rancher Desktop: :white_check_mark:
 
 #### Windows Native
 
@@ -58,7 +58,6 @@ Status for some of the possible setups that were tested:
 #### Linux
 
 - Docker CE: :grey_question:
-- ContainerD: :grey_question:
 - K3s: :grey_question:
 
 ### Installation
