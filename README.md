@@ -41,24 +41,51 @@ Status for some of the possible setups that were tested:
 
 - Docker for Desktop: :white_check_mark:
 - Lima+K3s: :white_check_mark:
-- Rancher Desktop: :white_check_mark:
+- Lima+K3d: :grey_question:
+- Rancher Desktop (K3s): :white_check_mark:
+- Rancher Desktop (K3d): :grey_question:
 
 #### Windows Native
 
 - Docker for Desktop: :x: (it would work but Docker VM uses `/mnt/host` instead of just `/mnt` - RT will have to figure out detecting that automatically - it can be fixed)
-- WSL2+K3s: :x: (seems like k3s required systemd which is missing in Ubuntu WSL2)
-- Rancher Desktop: :white_check_mark:
+- WSL2+K3s: :grey_question: (seems like k3s required systemd which is missing in Ubuntu WSL2 - it should be possible, but I didn't bother to make it work and test)
+- WSL2+K3d: :grey_question: (seems like k3s required systemd which is missing in Ubuntu WSL2 - it should be possible, but I didn't bother to make it work and test)
+- Rancher Desktop (K3s): :white_check_mark:
+- Rancher Desktop (K3d): :grey_question:
 
 #### Windows WSL2
 
-- Docker for Desktop: :white_check_mark: (only in `/mnt` - Docker VM can't mount other VM's paths; alternative - move your code to the Docker VM)
-- WSL2+K3s: :x: (seems like k3s required systemd which is missing in Ubuntu WSL2)
-- Rancher Desktop: :white_check_mark: (only in `/mnt` - Rancher VM can't mount other VM's paths; alternative - move your code to the Rancher VM)
+Please note VMs in WSL can't access each other directly - they are isolated. If your kubernetes cluster is in different VM than your code in (which is the case for Docker for Desktop as well as for Rancher Desktop) - this will not work with RT. Luckily you can work around that by mounting your code location via `/mnt/wsl` path witch is a `tmpfs` shared across all VMs. Please note this location is ephemeral - all contents will be nuked after restarts. So we will be using it to share a mount point, so the actual content stays on one of the VMs.
+
+On the VM with code:
+
+```ps1
+wsl mkdir -p /mnt/wsl/repos
+wsl sudo mount --bind ~/repos /mnt/wsl/repos
+```
+
+On the Kubernetes VM:
+
+```ps1
+wsl -d rancher-desktop mkdir -p ~/repos
+wsl -d rancher-desktop mount --bind /mnt/wsl/repos ~/repos
+```
+
+As the mount point `/mnt/wsl` is getting nuked every reboot - adding that to `/etc/fstab` wouldn't work. You have to repeat that after every reboot. Also - this doesn't taking care of automatically mounting other locations of interest such as `~/.aws` and `~/.kube`, nor does the Kubernetes VM will know about environment variables in the RT VM. So the entire setup while theoretically possible - hugely cumbersome.
+
+- Docker for Desktop: :grey_question: (see disclaimer above)
+- WSL2+K3s: :grey_question: (seems like k3s required systemd which is missing in Ubuntu WSL2 - it should be possible, but I didn't bother to make it work and test)
+- WSL2+K3d: :grey_question: (seems like k3s required systemd which is missing in Ubuntu WSL2 - it should be possible, but I didn't bother to make it work and test)
+- Rancher Desktop (K3s): :grey_question: (see dislaimer above)
+- Rancher Desktop (K3d): :grey_question: (see dislaimer above)
 
 #### Linux
 
 - Docker CE: :grey_question:
 - K3s: :grey_question:
+- K3d: :grey_question:
+- Rancher Desktop (K3s): :grey_question:
+- Rancher Desktop (K3d): :grey_question:
 
 ### Installation
 
