@@ -159,6 +159,9 @@ func (v *Volumes) AddHostMount(h host.Host, i image.Image, dest string, sources 
 		found, src := source.discover(h, i, dest)
 		if found {
 			log.Debug.Printf("Match found %s:%s", src, dest)
+			if dest == "" {
+				dest = src
+			}
 			dest = resolveTilde(i.Home, dest)
 			v.HostMapping = append(v.HostMapping, Volume{Src: src, Dest: dest})
 			log.Debug.Printf("Added volume %s:%s", src, dest)
