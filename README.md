@@ -18,6 +18,7 @@ Run anything as a container (in local Kubernetes cluster).
       - [Exec into container and stay there](#exec-into-container-and-stay-there)
       - [Extra volumes and port forwarding](#extra-volumes-and-port-forwarding)
       - [Extra ENV variables](#extra-env-variables)
+      - [Injecting secrets](#injecting-secrets)
       - [Custom directory](#custom-directory)
       - [Piping](#piping)
       - [Private Images](#private-images)
@@ -192,6 +193,10 @@ RT_VAR_FOO=foo RT_EVAR_BAR=bar runtainer alpine env
 ```
 
 You will see that `RT_VAR_FOO` was passed to the container as-is, and `RT_EVAR_BAR` was passed to the container as `BAR` i.e. removing the prefix.
+
+#### Injecting secrets
+
+See [example](examples/secrets).
 
 #### Custom directory
 
