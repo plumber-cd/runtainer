@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # Added
 
 - Forward `$SSH_AUTH_SOCK` in to the container
+- Implement secrets injection `--secret-env` and `--secret-volume`
 
 ## [0.1.3] - 2021-10-06
 

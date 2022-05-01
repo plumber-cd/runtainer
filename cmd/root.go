@@ -113,6 +113,11 @@ func init() {
 		llog.Panic(err)
 	}
 
+	rootCmd.PersistentFlags().StringSlice("secret-env", []string{}, "Mapping for env secrets, i.e. --secret-env foo secret-env bar")
+	if err := viper.BindPFlag("secrets.env", rootCmd.PersistentFlags().Lookup("secret-env")); err != nil {
+		llog.Panic(err)
+	}
+
 	rootCmd.PersistentFlags().StringSliceP("port", "p", []string{}, "Mapping for ports, i.e. --port 8080:8080")
 	if err := viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port")); err != nil {
 		llog.Panic(err)
@@ -120,6 +125,11 @@ func init() {
 
 	rootCmd.PersistentFlags().StringSliceP("volume", "v", []string{}, "Mapping for volumes, i.e. --volume /data:/data")
 	if err := viper.BindPFlag("volume", rootCmd.PersistentFlags().Lookup("volume")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().StringSlice("secret-volume", []string{}, "Mapping for env secrets, i.e. --secret-volume foo secret-volume bar")
+	if err := viper.BindPFlag("secrets.volumes", rootCmd.PersistentFlags().Lookup("secret-volume")); err != nil {
 		llog.Panic(err)
 	}
 

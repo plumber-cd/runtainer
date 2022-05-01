@@ -24,6 +24,9 @@ import (
 func Run(containerCmd, containerArgs []string) {
 	log.Debug.Print("Starting k8s backend")
 
+	trueVar := true
+	truePtr := &trueVar
+
 	stdIn, stdOut, stdErr := term.StdStreams()
 
 	h, e, p, i, v := discover.GetFromViper()
@@ -46,6 +49,7 @@ func Run(containerCmd, containerArgs []string) {
 		WorkingDir:      v.ContainerCwd,
 		ImagePullPolicy: v1.PullPolicy(v1.PullIfNotPresent),
 		Env:             []v1.EnvVar{},
+		EnvFrom:         []v1.EnvFromSource{},
 		VolumeMounts:    []v1.VolumeMount{},
 	}
 	podSpec := v1.Pod{
@@ -96,6 +100,18 @@ func Run(containerCmd, containerArgs []string) {
 		})
 	}
 
+	for _, secret := range viper.GetStringSlice("secrets.env") {
+		log.Info.Printf("Adding env envFrom: %s", secret)
+		containerSpec.EnvFrom = append(containerSpec.EnvFrom, v1.EnvFromSource{
+			SecretRef: &v1.SecretEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: secret,
+				},
+				Optional: truePtr,
+			},
+		})
+	}
+
 	for _, vol := range v.HostMapping {
 		volumeName := fmt.Sprintf("runtainer-%s", utils.RandomHex(4))
 		src := vol.Src
@@ -123,6 +139,25 @@ func Run(containerCmd, containerArgs []string) {
 		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, v1.VolumeMount{
 			Name:      volumeName,
 			MountPath: dst,
+		})
+	}
+
+	for _, secret := range viper.GetStringSlice("secrets.volumes") {
+		dst := "/rt-secrets/" + secret
+		log.Info.Printf("Adding secret volume %s -> %s", secret, dst)
+		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, v1.Volume{
+			Name: secret,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: secret,
+					Optional:   truePtr,
+				},
+			},
+		})
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, v1.VolumeMount{
+			Name:      secret,
+			MountPath: dst,
+			ReadOnly:  true,
 		})
 	}
 
