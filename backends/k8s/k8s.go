@@ -101,15 +101,27 @@ func Run(containerCmd, containerArgs []string) {
 	}
 
 	for _, secret := range viper.GetStringSlice("secrets.env") {
+		cfg := strings.Split(secret, ":")
+		secret = cfg[0]
 		log.Info.Printf("Adding env envFrom: %s", secret)
-		containerSpec.EnvFrom = append(containerSpec.EnvFrom, v1.EnvFromSource{
+
+		envFromSource := v1.EnvFromSource{
 			SecretRef: &v1.SecretEnvSource{
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: secret,
 				},
 				Optional: truePtr,
 			},
-		})
+		}
+
+		for _, option := range cfg {
+			if strings.HasPrefix(option, "prefix=") {
+				envFromSource.Prefix = strings.SplitN(option, "=", 2)[1]
+				log.Info.Printf("Secret envFrom %s: custom prefix %s", secret, envFromSource.Prefix)
+			}
+		}
+
+		containerSpec.EnvFrom = append(containerSpec.EnvFrom, envFromSource)
 	}
 
 	for _, vol := range v.HostMapping {
@@ -143,9 +155,12 @@ func Run(containerCmd, containerArgs []string) {
 	}
 
 	for _, secret := range viper.GetStringSlice("secrets.volumes") {
+		cfg := strings.Split(secret, ":")
+		secret = cfg[0]
 		dst := "/rt-secrets/" + secret
 		log.Info.Printf("Adding secret volume %s -> %s", secret, dst)
-		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, v1.Volume{
+
+		volume := v1.Volume{
 			Name: secret,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
@@ -153,12 +168,33 @@ func Run(containerCmd, containerArgs []string) {
 					Optional:   truePtr,
 				},
 			},
-		})
-		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, v1.VolumeMount{
+		}
+		volumeMount := v1.VolumeMount{
 			Name:      secret,
 			MountPath: dst,
 			ReadOnly:  true,
-		})
+		}
+
+		for _, option := range cfg {
+			if strings.HasPrefix(option, "mountPath=") {
+				volumeMount.MountPath = strings.SplitN(option, "=", 2)[1]
+				log.Info.Printf("Secret volume %s: custom mountPath %s", secret, volumeMount.MountPath)
+			} else if strings.HasPrefix(option, "items=") {
+				items := strings.Split(strings.SplitN(option, "=", 2)[1], ",")
+				keyToPath := make([]v1.KeyToPath, len(items))
+				for i, item := range items {
+					keyToPath[i] = v1.KeyToPath{
+						Key:  item,
+						Path: item,
+					}
+				}
+				volume.VolumeSource.Secret.Items = keyToPath
+				log.Info.Printf("Secret volume %s: custom items %v", secret, volume.VolumeSource.Secret.Items)
+			}
+		}
+
+		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, volume)
+		containerSpec.VolumeMounts = append(containerSpec.VolumeMounts, volumeMount)
 	}
 
 	podOptions.Ports = p
