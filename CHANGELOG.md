@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Force secure `0600` on the mounted secrets, but since we are using `fsGroup` - kubernetes will force `0640` to it.
+- Fix error adding multiple `items` to `--secret-volume` by allowing them to be added individually as `item`.
+  This usually warrants major version bump since it is not backward compatible, but it is a hotfix to a feature that was just released and never worked, so it's fine.
+
 ## [0.1.5] - 2022-04-30
 
 ### Added

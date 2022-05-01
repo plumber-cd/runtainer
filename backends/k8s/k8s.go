@@ -21,11 +21,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+func ptr[T any](v T) *T {
+	return &v
+}
+
 func Run(containerCmd, containerArgs []string) {
 	log.Debug.Print("Starting k8s backend")
-
-	trueVar := true
-	truePtr := &trueVar
 
 	stdIn, stdOut, stdErr := term.StdStreams()
 
@@ -110,7 +111,7 @@ func Run(containerCmd, containerArgs []string) {
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: secret,
 				},
-				Optional: truePtr,
+				Optional: ptr(true),
 			},
 		}
 
@@ -164,8 +165,9 @@ func Run(containerCmd, containerArgs []string) {
 			Name: secret,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
-					SecretName: secret,
-					Optional:   truePtr,
+					SecretName:  secret,
+					DefaultMode: ptr(int32(0600)), // since we use fsGroup - it will result in 0640 in reality
+					Optional:    ptr(true),
 				},
 			},
 		}
@@ -179,16 +181,13 @@ func Run(containerCmd, containerArgs []string) {
 			if strings.HasPrefix(option, "mountPath=") {
 				volumeMount.MountPath = strings.SplitN(option, "=", 2)[1]
 				log.Info.Printf("Secret volume %s: custom mountPath %s", secret, volumeMount.MountPath)
-			} else if strings.HasPrefix(option, "items=") {
-				items := strings.Split(strings.SplitN(option, "=", 2)[1], ",")
-				keyToPath := make([]v1.KeyToPath, len(items))
-				for i, item := range items {
-					keyToPath[i] = v1.KeyToPath{
-						Key:  item,
-						Path: item,
-					}
+			} else if strings.HasPrefix(option, "item=") {
+				item := strings.SplitN(option, "=", 2)[1]
+				keyToPath := v1.KeyToPath{
+					Key:  item,
+					Path: item,
 				}
-				volume.VolumeSource.Secret.Items = keyToPath
+				volume.VolumeSource.Secret.Items = append(volume.VolumeSource.Secret.Items, keyToPath)
 				log.Info.Printf("Secret volume %s: custom items %v", secret, volume.VolumeSource.Secret.Items)
 			}
 		}
