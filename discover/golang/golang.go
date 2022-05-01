@@ -1,6 +1,8 @@
 package golang
 
 import (
+	"golang.org/x/exp/slices"
+
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/volumes"
@@ -14,6 +16,11 @@ const (
 
 // Discover specific to Go
 func Discover() {
+	disabled := viper.GetStringSlice("discovery.disabled")
+	if slices.Contains(disabled, "all") || slices.Contains(disabled, "golang") {
+		return
+	}
+
 	log.Debug.Print("Discover Go")
 
 	// get what's already calculated by now

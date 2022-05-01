@@ -1,6 +1,8 @@
 package tf
 
 import (
+	"golang.org/x/exp/slices"
+
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/env"
 	"github.com/plumber-cd/runtainer/log"
@@ -10,6 +12,11 @@ import (
 
 // Discover specific to AWS
 func Discover() {
+	disabled := viper.GetStringSlice("discovery.disabled")
+	if slices.Contains(disabled, "all") || slices.Contains(disabled, "tf") {
+		return
+	}
+
 	log.Debug.Print("Discover Terraform")
 
 	// get what's already calculated by now

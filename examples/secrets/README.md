@@ -33,7 +33,10 @@ Example adding local SSH credentials:
 ```bash
 kubectl create secret generic runtainer-ssh --from-file=${HOME}/.ssh/id_rsa --from-file=${HOME}/.ssh/id_rsa.pub
 rm -f ${HOME}/.ssh/{id_rsa,id_rsa.pub} # you don't need them in plain text on the disc anymore, right?
-runtainer --secret-volume runtainer-ssh:mountPath=/root/.my_ssh:item=id_rsa:item:id_rsa.pub alpine/git sh
+runtainer \
+    --secret-volume runtainer-ssh:mountPath=/root/.my_ssh:item=id_rsa:item:id_rsa.pub \
+    --disable-discovery system.ssh \
+    alpine/git sh
 > cat ~/.my_ssh/id_rsa > ~/.ssh/my_id_rsa # because we use fsGroup - kubernetes will force g+r and SSH will reject it
 > chmod 600 ~/.ssh/my_id_rsa
 > ssh -i ~/.ssh/my_id_rsa -T git@github.com

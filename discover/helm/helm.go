@@ -1,6 +1,8 @@
 package helm
 
 import (
+	"golang.org/x/exp/slices"
+
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/host"
 	"github.com/plumber-cd/runtainer/image"
@@ -12,6 +14,11 @@ import (
 
 // Discover specific to Helm
 func Discover() {
+	disabled := viper.GetStringSlice("discovery.disabled")
+	if slices.Contains(disabled, "all") || slices.Contains(disabled, "helm") {
+		return
+	}
+
 	log.Debug.Print("Discover Helm")
 
 	// get what's already calculated by now

@@ -1,6 +1,8 @@
 package java
 
 import (
+	"golang.org/x/exp/slices"
+
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/volumes"
@@ -9,6 +11,11 @@ import (
 
 // Discover specific to Java
 func Discover() {
+	disabled := viper.GetStringSlice("discovery.disabled")
+	if slices.Contains(disabled, "all") || slices.Contains(disabled, "java") {
+		return
+	}
+
 	log.Debug.Print("Discover Java")
 
 	// get what's already calculated by now

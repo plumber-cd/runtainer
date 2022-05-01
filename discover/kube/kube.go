@@ -1,6 +1,8 @@
 package kube
 
 import (
+	"golang.org/x/exp/slices"
+
 	"github.com/plumber-cd/runtainer/discover"
 	"github.com/plumber-cd/runtainer/log"
 	"github.com/plumber-cd/runtainer/volumes"
@@ -9,6 +11,11 @@ import (
 
 // Discover specific to Kubernetes
 func Discover() {
+	disabled := viper.GetStringSlice("discovery.disabled")
+	if slices.Contains(disabled, "all") || slices.Contains(disabled, "kube") {
+		return
+	}
+
 	log.Debug.Print("Discover Kubernetes")
 
 	// get what's already calculated by now

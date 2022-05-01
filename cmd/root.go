@@ -138,6 +138,11 @@ func init() {
 		llog.Panic(err)
 	}
 
+	rootCmd.PersistentFlags().StringSlice("disable-discovery", []string{}, "Disable individual discovery mechanisms")
+	if err := viper.BindPFlag("discovery.disabled", rootCmd.PersistentFlags().Lookup("disable-discovery")); err != nil {
+		llog.Panic(err)
+	}
+
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to StdOut a pod spec it would have run.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)

@@ -22,6 +22,7 @@ Run anything as a container (in local Kubernetes cluster).
       - [Custom directory](#custom-directory)
       - [Piping](#piping)
       - [Private Images](#private-images)
+      - [Disable automatic discovery](#disable-automatic-discovery)
       - [Troubleshooting](#troubleshooting)
     - [Configuration](#configuration)
   - [Why](#why)
@@ -235,6 +236,10 @@ Now you all you need is to tell RT the secret name to use:
 ```bash
 runtainer --secret my-registry registry/image
 ```
+
+#### Disable automatic discovery
+
+You can optionally disable unwanted automatic discovery or its parts. See [example](examples/disable-discovery).
 
 #### Troubleshooting
 

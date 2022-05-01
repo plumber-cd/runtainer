@@ -9,6 +9,7 @@ require (
 	github.com/spf13/afero v1.8.2
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.11.0
+	golang.org/x/exp v0.0.0-20220428152302-39d4317da171
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171
 	helm.sh/helm/v3 v3.8.2
 	k8s.io/api v0.23.6
