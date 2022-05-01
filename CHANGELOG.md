@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2022-04-30
+
 ### Changed
 
 - Force secure `0600` on the mounted secrets, but since we are using `fsGroup` - kubernetes will force `0640` to it.
