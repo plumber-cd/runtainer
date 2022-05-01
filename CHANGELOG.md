@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2022-04-30
+
+### Added
+
+- Add options to `--secret-env` and `--secret-volume`
+- With `--secret-env` you can now specify custom `prefix`
+- With `--secret-volume` you can now specify custom `mountPath` and `items`
+
 ## [0.1.4] - 2022-04-30
 
 ### Added
