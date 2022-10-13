@@ -16,6 +16,7 @@ Run anything as a container (in local Kubernetes cluster).
     - [Usage](#usage)
       - [Basic container run](#basic-container-run)
       - [Exec into container and stay there](#exec-into-container-and-stay-there)
+      - [Run As](#run-as)
       - [Extra volumes and port forwarding](#extra-volumes-and-port-forwarding)
       - [Extra ENV variables](#extra-env-variables)
       - [Injecting secrets](#injecting-secrets)
@@ -84,7 +85,7 @@ As the mount point `/mnt/wsl` is getting nuked every reboot - adding that to `/e
 #### Linux
 
 - Docker CE: :grey_question:
-- K3s: :grey_question:
+- K3s: :white_check_mark:
 - K3d: :grey_question:
 - Rancher Desktop (K3s): :grey_question:
 - Rancher Desktop (K3d): :grey_question:
@@ -162,6 +163,19 @@ runtainer maven:3.6.3-jdk-14 mvn -- -version
 
 ```bash
 runtainer alpine sh
+```
+
+#### Run As
+
+By default, RT will use `runAsUser` and `runAsGroup` for security context of the pod to make it UID and GID of the local host user. This might not always work and it depends on the image and what you are trying to do with it.
+
+Some images and software in them might rely on the user home directory. As RT will essentially change the `id` of the user - the home directory bundled with the image will no longer be accessible.
+
+In other cases, some software might not like that the current `id` is set to the user that doesn't exists in the system. For example a simple `whoami` will not work:
+
+```bash
+runtainer -q alpine whoami
+whoami: unknown uid 1000
 ```
 
 #### Extra volumes and port forwarding
