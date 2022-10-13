@@ -82,8 +82,15 @@ func Run(containerCmd, containerArgs []string) {
 		}
 	}
 
-	if h.GID > 0 {
-		podSpec.Spec.SecurityContext.SupplementalGroups = []int64{h.GID}
+	if viper.GetBool("run-as-current-user") {
+		podSpec.Spec.SecurityContext.RunAsUser = &h.UID
+	}
+
+	podSpec.Spec.SecurityContext.SupplementalGroups = []int64{h.GID}
+
+	if viper.GetBool("run-as-current-user") && viper.GetBool("run-as-current-group") {
+		podSpec.Spec.SecurityContext.RunAsGroup = &h.GID
+	} else if h.GID > 0 {
 		podSpec.Spec.SecurityContext.FSGroup = &h.GID
 	}
 
