@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+
+- Will no longer set `fsGroup` to the current host GID by default.
+- Will now set `runAsUser` to the current host UID and `runAsGroup` to the current host GID instead.
+- Added new `--run-as-current-user` and `--run-as-current-group` options to disable this new behavior.
+
+Should be fine for most cases, but note that depending on what is in the image - it might break stuff sometimes.
+Some images might rely on the user home directory. This new behavior is changing the user `id`, so the home directory bundled with the image no longer accessible.
+In other cases, some software might not like that the current `id` set to the user that doesn't exists in the system. I.e.:
+
+```bash
+runtainer -q alpine whoami
+whoami: unknown uid 1000
+```
+
+### Also in this release
+
+- Updated all dependencies
+
 ## [0.1.6] - 2022-04-30
 
 ### Changed

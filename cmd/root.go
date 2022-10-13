@@ -143,6 +143,16 @@ func init() {
 		llog.Panic(err)
 	}
 
+	rootCmd.PersistentFlags().BoolP("run-as-current-user", "U", true, "Will set runAsUser to the current host UID.")
+	if err := viper.BindPFlag("run-as-current-user", rootCmd.PersistentFlags().Lookup("run-as-current-user")); err != nil {
+		llog.Panic(err)
+	}
+
+	rootCmd.PersistentFlags().BoolP("run-as-current-group", "G", true, "Will set runAsGroup to the current host GID. Ignored if -U=false. If disabled - will set fsGroup to the current host GID instead.")
+	if err := viper.BindPFlag("run-as-current-group", rootCmd.PersistentFlags().Lookup("run-as-current-group")); err != nil {
+		llog.Panic(err)
+	}
+
 	rootCmd.PersistentFlags().Bool("dry-run", false, "Dry Run mode will not execute the container, only print to StdOut a pod spec it would have run.")
 	if err := viper.BindPFlag("dry-run", rootCmd.PersistentFlags().Lookup("dry-run")); err != nil {
 		llog.Panic(err)

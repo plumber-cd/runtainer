@@ -3,6 +3,7 @@ package image
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -22,6 +23,8 @@ type Image struct {
 	OS            string
 	PathSeparator string
 	User          string
+	UID           int64
+	GID           int64
 	Home          string
 }
 
@@ -74,7 +77,7 @@ func DiscoverImage(image string) {
 		ExecCmd: []string{
 			"/bin/sh",
 			"-c",
-			"echo $(whoami):$(cd && pwd)",
+			"echo $(whoami):$(id -u):$(id -g):$(cd && pwd)",
 		},
 		Stdout: stdout,
 		Stderr: stderr,
@@ -95,12 +98,20 @@ func DiscoverImage(image string) {
 
 	out := strings.TrimSpace(stdout.String())
 	outSplit := strings.Split(out, ":")
-	if len(outSplit) != 2 {
+	if len(outSplit) != 4 {
 		log.Normal.Println(stderr.String())
 		log.Normal.Panic(fmt.Errorf("Unexpected output: %s", out))
 	}
 	username := outSplit[0]
-	pwd := outSplit[1]
+	uid, err := strconv.ParseInt(outSplit[1], 10, 64)
+	if err != nil {
+		log.Normal.Panic(err)
+	}
+	gid, err := strconv.ParseInt(outSplit[2], 10, 64)
+	if err != nil {
+		log.Normal.Panic(err)
+	}
+	pwd := outSplit[3]
 
 	// TODO: for now we assume all containers are Linux
 	os := "linux"
@@ -112,6 +123,8 @@ func DiscoverImage(image string) {
 		OS:            os,
 		PathSeparator: pathSeparator,
 		User:          username,
+		UID:           uid,
+		GID:           gid,
 		Home:          pwd,
 	})
 }
